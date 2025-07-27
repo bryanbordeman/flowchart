@@ -93,13 +93,37 @@ const FlowchartNode = ({
         setShowEditModal(true);
     };
 
-    const handleSaveEdit = (newText, newColor) => {
-        onUpdateNode(node.id, { text: newText, color: newColor });
+    const handleSaveEdit = (newText, newColor, newDocument) => {
+        onUpdateNode(node.id, {
+            text: newText,
+            color: newColor,
+            document: newDocument,
+        });
         setShowEditModal(false);
     };
 
     const handleCancelEdit = () => {
         setShowEditModal(false);
+    };
+
+    const handleDocumentClick = async (e) => {
+        e.stopPropagation();
+        if (node.document) {
+            try {
+                const result = await window.electronAPI.openDocument(
+                    node.document
+                );
+                if (!result.success) {
+                    alert(
+                        "Failed to open document: " +
+                            (result.error || "Unknown error")
+                    );
+                }
+            } catch (error) {
+                console.error("Error opening document:", error);
+                alert("Failed to open document");
+            }
+        }
     };
 
     // Dynamic styling based on connection state
@@ -196,6 +220,15 @@ const FlowchartNode = ({
                     )}
 
                     <div className="node-content">
+                        {node.document && (
+                            <div
+                                className="document-indicator clickable"
+                                title={`Click to open: ${node.document.fileName}`}
+                                onClick={handleDocumentClick}
+                            >
+                                📄
+                            </div>
+                        )}
                         {isEditing ? (
                             <input
                                 ref={inputRef}
@@ -235,6 +268,7 @@ const FlowchartNode = ({
 const EditNodeModal = ({ node, onSave, onCancel }) => {
     const [text, setText] = useState(node.text);
     const [color, setColor] = useState(node.color || "default");
+    const [document, setDocument] = useState(node.document || null);
 
     const colorOptions = [
         { name: "Default", value: "default", bg: "#87ceeb", border: "#4682b4" },
@@ -248,7 +282,50 @@ const EditNodeModal = ({ node, onSave, onCancel }) => {
     ];
 
     const handleSave = () => {
-        onSave(text, color);
+        onSave(text, color, document);
+    };
+
+    const handleAttachDocument = async () => {
+        try {
+            const result = await window.electronAPI.attachDocument();
+            if (result.success) {
+                const newDocument = {
+                    id: Date.now().toString(),
+                    fileName: result.fileName,
+                    data: result.data,
+                    attachedAt: new Date().toISOString(),
+                };
+                setDocument(newDocument);
+            } else {
+                alert(
+                    "Failed to attach document: " +
+                        (result.error || "Unknown error")
+                );
+            }
+        } catch (error) {
+            console.error("Error attaching document:", error);
+            alert("Failed to attach document");
+        }
+    };
+
+    const handleViewDocument = async () => {
+        if (!document) return;
+        try {
+            const result = await window.electronAPI.openDocument(document);
+            if (!result.success) {
+                alert(
+                    "Failed to open document: " +
+                        (result.error || "Unknown error")
+                );
+            }
+        } catch (error) {
+            console.error("Error opening document:", error);
+            alert("Failed to open document");
+        }
+    };
+
+    const handleRemoveDocument = () => {
+        setDocument(null);
     };
 
     const handleKeyPress = (e) => {
@@ -294,6 +371,48 @@ const EditNodeModal = ({ node, onSave, onCancel }) => {
                                 {color === option.value && <span>✓</span>}
                             </div>
                         ))}
+                    </div>
+                </div>
+
+                <div className="edit-field">
+                    <label>Document:</label>
+                    <div className="documents-section">
+                        {!document ? (
+                            <button
+                                type="button"
+                                className="attach-document-btn"
+                                onClick={handleAttachDocument}
+                            >
+                                📎 Attach PDF
+                            </button>
+                        ) : (
+                            <div className="attached-documents">
+                                <div className="document-item">
+                                    <span
+                                        className="document-name"
+                                        onClick={handleViewDocument}
+                                        title="Click to view document"
+                                    >
+                                        📄 {document.fileName}
+                                    </span>
+                                    <button
+                                        className="remove-document-btn"
+                                        onClick={handleRemoveDocument}
+                                        title="Remove document"
+                                    >
+                                        ✕
+                                    </button>
+                                </div>
+                                <button
+                                    type="button"
+                                    className="attach-document-btn"
+                                    onClick={handleAttachDocument}
+                                    style={{ marginTop: "8px" }}
+                                >
+                                    📎 Replace PDF
+                                </button>
+                            </div>
+                        )}
                     </div>
                 </div>
 

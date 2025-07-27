@@ -1,4 +1,11 @@
-const { app, BrowserWindow, Menu, dialog, ipcMain } = require("electron");
+const {
+    app,
+    BrowserWindow,
+    Menu,
+    dialog,
+    ipcMain,
+    shell,
+} = require("electron");
 const path = require("path");
 // Better development detection
 const isDev =
@@ -272,6 +279,80 @@ ipcMain.handle("open-file", async (event) => {
     } catch (error) {
         console.error("Dialog error:", error);
         return { success: false, error: "Failed to open file dialog" };
+    }
+});
+
+// Handle document attachment requests
+ipcMain.handle("attach-document", async (event) => {
+    try {
+        const result = await dialog.showOpenDialog(mainWindow, {
+            properties: ["openFile"],
+            filters: [{ name: "PDF Documents", extensions: ["pdf"] }],
+        });
+
+        if (!result.canceled && result.filePaths.length > 0) {
+            const filePath = result.filePaths[0];
+            const fileName = path.basename(filePath);
+
+            try {
+                // Read the PDF file as base64 for storage
+                const fileData = fs.readFileSync(filePath);
+                const base64Data = fileData.toString("base64");
+
+                return {
+                    success: true,
+                    fileName: fileName,
+                    data: base64Data,
+                    originalPath: filePath,
+                };
+            } catch (error) {
+                console.error("File read error:", error);
+                return { success: false, error: error.message };
+            }
+        }
+        return { success: false, error: "Document selection canceled" };
+    } catch (error) {
+        console.error("Dialog error:", error);
+        return { success: false, error: "Failed to open document dialog" };
+    }
+});
+
+// Handle document viewing requests
+ipcMain.handle("open-document", async (event, documentData) => {
+    try {
+        if (!documentData || !documentData.data) {
+            return { success: false, error: "No document data provided" };
+        }
+
+        // Create temporary file for viewing
+        const tempDir = require("os").tmpdir();
+        const tempFilePath = path.join(
+            tempDir,
+            `flowchart_doc_${Date.now()}_${documentData.fileName}`
+        );
+
+        // Write base64 data back to temporary file
+        const buffer = Buffer.from(documentData.data, "base64");
+        fs.writeFileSync(tempFilePath, buffer);
+
+        // Open with default PDF viewer
+        await shell.openPath(tempFilePath);
+
+        // Clean up temp file after 30 seconds
+        setTimeout(() => {
+            try {
+                if (fs.existsSync(tempFilePath)) {
+                    fs.unlinkSync(tempFilePath);
+                }
+            } catch (error) {
+                console.error("Error cleaning up temp file:", error);
+            }
+        }, 30000);
+
+        return { success: true };
+    } catch (error) {
+        console.error("Document open error:", error);
+        return { success: false, error: error.message };
     }
 });
 

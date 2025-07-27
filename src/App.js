@@ -28,6 +28,7 @@ function App() {
             position: position,
             text: getDefaultText(type),
             color: "default", // Default color for new nodes
+            document: null, // Single document attachment
         };
         setNodes((prev) => [...prev, newNode]);
         setIsDirty(true);

@@ -8,6 +8,8 @@ const validChannels = [
     "menu-open-file",
     "menu-save-file",
     "menu-save-as-file",
+    "attach-document",
+    "open-document",
 ];
 
 contextBridge.exposeInMainWorld("electronAPI", {
@@ -49,5 +51,11 @@ contextBridge.exposeInMainWorld("electronAPI", {
             throw new Error("Invalid channel");
         }
         ipcRenderer.removeAllListeners(channel);
+    },
+    attachDocument: () => {
+        return ipcRenderer.invoke("attach-document");
+    },
+    openDocument: (filePath) => {
+        return ipcRenderer.invoke("open-document", filePath);
     },
 });
