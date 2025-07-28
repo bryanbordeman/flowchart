@@ -1,8 +1,34 @@
 import React, { useState, useRef } from "react";
 import Draggable from "react-draggable";
+import {
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    DialogActions,
+    TextField,
+    Button,
+    Box,
+    Typography,
+    Chip,
+    Stack,
+    IconButton,
+    Grid,
+    Select,
+    MenuItem,
+    FormControl,
+    InputLabel,
+} from "@mui/material";
+import {
+    AttachFile,
+    Delete,
+    Visibility,
+    Close,
+    Edit,
+} from "@mui/icons-material";
 
 const FlowchartNode = ({
     node,
+    segments,
     isSelected,
     isConnecting,
     isConnectingFrom,
@@ -18,6 +44,7 @@ const FlowchartNode = ({
     const [editText, setEditText] = useState(node.text);
     const [showEditModal, setShowEditModal] = useState(false);
     const inputRef = useRef(null);
+    const nodeRef = useRef(null);
 
     const handleDoubleClick = () => {
         if (node.type !== "connector") {
@@ -93,10 +120,10 @@ const FlowchartNode = ({
         setShowEditModal(true);
     };
 
-    const handleSaveEdit = (newText, newColor, newDocument) => {
+    const handleSaveEdit = (newText, newSegment, newDocument) => {
         onUpdateNode(node.id, {
             text: newText,
-            color: newColor,
+            segment: newSegment,
             document: newDocument,
         });
         setShowEditModal(false);
@@ -130,15 +157,18 @@ const FlowchartNode = ({
     const getNodeClassName = () => {
         let className = `flowchart-node ${node.type}`;
 
-        // Add color class
-        const nodeColor = node.color || "default";
-        className += ` color-${nodeColor}`;
-
         if (isSelected) className += " selected";
         if (isConnectingFrom) className += " connecting-from";
         if (isConnecting && !isConnectingFrom)
             className += " connection-target";
         return className;
+    };
+
+    // Get segment color for styling
+    const getSegmentColor = () => {
+        const segmentId = node.segment || "default";
+        const segment = segments?.find((s) => s.id === segmentId);
+        return segment?.color || "#ffffff";
     };
 
     return (
@@ -149,9 +179,16 @@ const FlowchartNode = ({
                 handle=".node-content"
                 grid={[20, 20]} // Grid snapping in Draggable
                 disabled={isConnecting}
+                nodeRef={nodeRef}
             >
                 <div
+                    ref={nodeRef}
                     className={getNodeClassName()}
+                    style={
+                        node.type === "decision"
+                            ? { "--diamond-color": getSegmentColor() }
+                            : { backgroundColor: getSegmentColor() }
+                    }
                     onClick={handleClick}
                     onContextMenu={handleRightClick}
                     onDoubleClick={handleDoubleClick}
@@ -161,21 +198,47 @@ const FlowchartNode = ({
                             : "Drag from connection ports to create connections"
                     }
                 >
-                    <button
-                        className="delete-button"
+                    <IconButton
+                        size="small"
                         onClick={handleDelete}
                         title="Delete node"
+                        sx={{
+                            position: "absolute",
+                            top: -6,
+                            right: -6,
+                            width: 20,
+                            height: 20,
+                            backgroundColor: "white",
+                            border: "1px solid #ddd",
+                            "&:hover": {
+                                backgroundColor: "#ffebee",
+                                borderColor: "#f44336",
+                            },
+                        }}
                     >
-                        ×
-                    </button>
+                        <Delete sx={{ fontSize: 14 }} color="error" />
+                    </IconButton>
 
-                    <button
-                        className="edit-button"
+                    <IconButton
+                        size="small"
                         onClick={handleEditModal}
                         title="Edit node properties"
+                        sx={{
+                            position: "absolute",
+                            top: -6,
+                            right: 16,
+                            width: 20,
+                            height: 20,
+                            backgroundColor: "white",
+                            border: "1px solid #ddd",
+                            "&:hover": {
+                                backgroundColor: "#e3f2fd",
+                                borderColor: "#2196f3",
+                            },
+                        }}
                     >
-                        ✎
-                    </button>
+                        <Edit sx={{ fontSize: 14 }} color="primary" />
+                    </IconButton>
 
                     {/* Connection Ports */}
                     {node.type !== "connector" && (
@@ -221,13 +284,29 @@ const FlowchartNode = ({
 
                     <div className="node-content">
                         {node.document && (
-                            <div
-                                className="document-indicator clickable"
-                                title={`Click to open: ${node.document.fileName}`}
+                            <IconButton
+                                size="small"
                                 onClick={handleDocumentClick}
+                                title={`Click to open: ${node.document.fileName}`}
+                                sx={{
+                                    position: "absolute",
+                                    bottom: -6,
+                                    left: -6,
+                                    width: 20,
+                                    height: 20,
+                                    backgroundColor: "white",
+                                    border: "1px solid #ddd",
+                                    "&:hover": {
+                                        backgroundColor: "#f3e5f5",
+                                        borderColor: "#9c27b0",
+                                    },
+                                }}
                             >
-                                📄
-                            </div>
+                                <AttachFile
+                                    sx={{ fontSize: 14 }}
+                                    color="secondary"
+                                />
+                            </IconButton>
                         )}
                         {isEditing ? (
                             <input
@@ -256,6 +335,7 @@ const FlowchartNode = ({
             {showEditModal && (
                 <EditNodeModal
                     node={node}
+                    segments={segments}
                     onSave={handleSaveEdit}
                     onCancel={handleCancelEdit}
                 />
@@ -265,24 +345,13 @@ const FlowchartNode = ({
 };
 
 // Edit Node Modal Component
-const EditNodeModal = ({ node, onSave, onCancel }) => {
+const EditNodeModal = ({ node, segments, onSave, onCancel }) => {
     const [text, setText] = useState(node.text);
-    const [color, setColor] = useState(node.color || "default");
+    const [segment, setSegment] = useState(node.segment || "default");
     const [document, setDocument] = useState(node.document || null);
 
-    const colorOptions = [
-        { name: "Default", value: "default", bg: "#87ceeb", border: "#4682b4" },
-        { name: "Red", value: "red", bg: "#ffb3b3", border: "#ff6b6b" },
-        { name: "Green", value: "green", bg: "#b3ffb3", border: "#6bff6b" },
-        { name: "Blue", value: "blue", bg: "#b3d9ff", border: "#4da6ff" },
-        { name: "Yellow", value: "yellow", bg: "#ffffb3", border: "#ffff4d" },
-        { name: "Purple", value: "purple", bg: "#e0b3ff", border: "#cc66ff" },
-        { name: "Orange", value: "orange", bg: "#ffcc99", border: "#ff9933" },
-        { name: "Pink", value: "pink", bg: "#ffccdd", border: "#ff99bb" },
-    ];
-
     const handleSave = () => {
-        onSave(text, color, document);
+        onSave(text, segment, document);
     };
 
     const handleAttachDocument = async () => {
@@ -337,95 +406,177 @@ const EditNodeModal = ({ node, onSave, onCancel }) => {
     };
 
     return (
-        <div className="edit-modal-overlay" onClick={onCancel}>
-            <div className="edit-modal" onClick={(e) => e.stopPropagation()}>
-                <h3>Edit Node</h3>
+        <Dialog
+            open={true}
+            onClose={onCancel}
+            maxWidth="sm"
+            fullWidth
+            PaperProps={{
+                sx: { borderRadius: 2 },
+            }}
+        >
+            <DialogTitle
+                sx={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                }}
+            >
+                <Typography variant="h6">Edit Node</Typography>
+                <IconButton onClick={onCancel} size="small">
+                    <Close />
+                </IconButton>
+            </DialogTitle>
 
-                <div className="edit-field">
-                    <label>Text:</label>
-                    <input
-                        type="text"
+            <DialogContent sx={{ pb: 1 }}>
+                <Box
+                    sx={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 3,
+                        mt: 1,
+                    }}
+                >
+                    {/* Text Field */}
+                    <TextField
+                        fullWidth
+                        label="Text"
                         value={text}
                         onChange={(e) => setText(e.target.value)}
                         onKeyDown={handleKeyPress}
                         autoFocus
+                        variant="outlined"
                     />
-                </div>
 
-                <div className="edit-field">
-                    <label>Color:</label>
-                    <div className="color-options">
-                        {colorOptions.map((option) => (
-                            <div
-                                key={option.value}
-                                className={`color-option ${
-                                    color === option.value ? "selected" : ""
-                                }`}
-                                style={{
-                                    backgroundColor: option.bg,
-                                    border: `2px solid ${option.border}`,
-                                }}
-                                onClick={() => setColor(option.value)}
-                                title={option.name}
-                            >
-                                {color === option.value && <span>✓</span>}
-                            </div>
-                        ))}
-                    </div>
-                </div>
-
-                <div className="edit-field">
-                    <label>Document:</label>
-                    <div className="documents-section">
-                        {!document ? (
-                            <button
-                                type="button"
-                                className="attach-document-btn"
-                                onClick={handleAttachDocument}
-                            >
-                                📎 Attach PDF
-                            </button>
-                        ) : (
-                            <div className="attached-documents">
-                                <div className="document-item">
-                                    <span
-                                        className="document-name"
-                                        onClick={handleViewDocument}
-                                        title="Click to view document"
-                                    >
-                                        📄 {document.fileName}
-                                    </span>
-                                    <button
-                                        className="remove-document-btn"
-                                        onClick={handleRemoveDocument}
-                                        title="Remove document"
-                                    >
-                                        ✕
-                                    </button>
-                                </div>
-                                <button
-                                    type="button"
-                                    className="attach-document-btn"
-                                    onClick={handleAttachDocument}
-                                    style={{ marginTop: "8px" }}
+                    {/* Segment Selection */}
+                    <FormControl fullWidth>
+                        <InputLabel id="segment-select-label">
+                            Segment
+                        </InputLabel>
+                        <Select
+                            labelId="segment-select-label"
+                            value={segment}
+                            label="Segment"
+                            onChange={(e) => setSegment(e.target.value)}
+                        >
+                            <MenuItem value="default">
+                                <Box
+                                    sx={{
+                                        display: "flex",
+                                        alignItems: "center",
+                                        gap: 1,
+                                    }}
                                 >
-                                    📎 Replace PDF
-                                </button>
-                            </div>
-                        )}
-                    </div>
-                </div>
+                                    <Box
+                                        sx={{
+                                            width: 16,
+                                            height: 16,
+                                            borderRadius: "50%",
+                                            backgroundColor: "#FFFFFF",
+                                            border: "2px solid #ddd",
+                                        }}
+                                    />
+                                    Default
+                                </Box>
+                            </MenuItem>
+                            {segments?.map((segmentOption) => (
+                                <MenuItem
+                                    key={segmentOption.id}
+                                    value={segmentOption.id}
+                                >
+                                    <Box
+                                        sx={{
+                                            display: "flex",
+                                            alignItems: "center",
+                                            gap: 1,
+                                        }}
+                                    >
+                                        <Box
+                                            sx={{
+                                                width: 16,
+                                                height: 16,
+                                                borderRadius: "50%",
+                                                backgroundColor:
+                                                    segmentOption.color,
+                                                border: "1px solid #ddd",
+                                            }}
+                                        />
+                                        {segmentOption.name}
+                                    </Box>
+                                </MenuItem>
+                            ))}
+                        </Select>
+                    </FormControl>
 
-                <div className="edit-buttons">
-                    <button className="save-btn" onClick={handleSave}>
-                        Save
-                    </button>
-                    <button className="cancel-btn" onClick={onCancel}>
-                        Cancel
-                    </button>
-                </div>
-            </div>
-        </div>
+                    {/* Document Attachment */}
+                    <Box>
+                        <Typography variant="subtitle1" gutterBottom>
+                            Document:
+                        </Typography>
+                        {!document ? (
+                            <Button
+                                variant="outlined"
+                                startIcon={<AttachFile />}
+                                onClick={handleAttachDocument}
+                                size="small"
+                                sx={{ textTransform: "none" }}
+                            >
+                                Attach PDF
+                            </Button>
+                        ) : (
+                            <Box
+                                sx={{
+                                    display: "flex",
+                                    flexDirection: "column",
+                                    gap: 1,
+                                }}
+                            >
+                                <Box
+                                    sx={{
+                                        display: "flex",
+                                        alignItems: "center",
+                                        gap: 1,
+                                    }}
+                                >
+                                    <Chip
+                                        label={document.fileName}
+                                        icon={<Visibility />}
+                                        onClick={handleViewDocument}
+                                        onDelete={handleRemoveDocument}
+                                        deleteIcon={<Delete />}
+                                        variant="outlined"
+                                        color="primary"
+                                        size="small"
+                                        sx={{ maxWidth: "300px" }}
+                                    />
+                                </Box>
+                                <Button
+                                    variant="outlined"
+                                    startIcon={<AttachFile />}
+                                    onClick={handleAttachDocument}
+                                    size="small"
+                                    sx={{
+                                        textTransform: "none",
+                                        alignSelf: "flex-start",
+                                    }}
+                                >
+                                    Replace PDF
+                                </Button>
+                            </Box>
+                        )}
+                    </Box>
+                </Box>
+            </DialogContent>
+
+            <DialogActions sx={{ px: 3, pb: 2 }}>
+                <Button onClick={onCancel} variant="outlined" size="small">
+                    Cancel
+                </Button>
+                <Button onClick={handleSave} variant="contained" size="small">
+                    Save
+                </Button>
+            </DialogActions>
+        </Dialog>
     );
 };
 

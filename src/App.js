@@ -16,6 +16,16 @@ function App() {
     const [connectingFrom, setConnectingFrom] = useState(null);
     const [showDecisionSelector, setShowDecisionSelector] = useState(false);
     const [pendingConnection, setPendingConnection] = useState(null);
+    const [segments, setSegments] = useState([
+        { id: "default", name: "Default", color: "#FFFFFF" },
+        { id: "sales", name: "Sales", color: "#C8E6C9" },
+        { id: "engineering", name: "Engineering", color: "#BBDEFB" },
+        { id: "accounting", name: "Accounting", color: "#FFF9C4" },
+        { id: "operations", name: "Operations", color: "#B2EBF2" },
+        { id: "purchasing", name: "Purchasing", color: "#E1BEE7" },
+        { id: "field", name: "Field", color: "#FFCC80" },
+        { id: "shop", name: "Shop", color: "#FFCDD2" },
+    ]);
 
     // Generate unique ID for nodes
     const generateId = () => Date.now().toString();
@@ -27,7 +37,7 @@ function App() {
             type: type,
             position: position,
             text: getDefaultText(type),
-            color: "default", // Default color for new nodes
+            segment: "default", // Default segment for new nodes
             document: null, // Single document attachment
         };
         setNodes((prev) => [...prev, newNode]);
@@ -103,6 +113,41 @@ function App() {
         },
         [selectedNode]
     );
+
+    // Segment management functions
+    const addSegment = useCallback((segment) => {
+        setSegments((prev) => [...prev, segment]);
+        setIsDirty(true);
+    }, []);
+
+    const deleteSegment = useCallback((segmentId) => {
+        // Don't delete the default segment
+        if (segmentId === "default") return;
+
+        setSegments((prev) =>
+            prev.filter((segment) => segment.id !== segmentId)
+        );
+
+        // Update nodes that were using this segment to use default
+        setNodes((prev) =>
+            prev.map((node) =>
+                node.segment === segmentId
+                    ? { ...node, segment: "default" }
+                    : node
+            )
+        );
+
+        setIsDirty(true);
+    }, []);
+
+    const updateSegment = useCallback((segmentId, updates) => {
+        setSegments((prev) =>
+            prev.map((segment) =>
+                segment.id === segmentId ? { ...segment, ...updates } : segment
+            )
+        );
+        setIsDirty(true);
+    }, []);
 
     // Start connection mode
     const startConnection = useCallback((fromNodeId, fromPort = "right") => {
@@ -352,7 +397,13 @@ function App() {
             />
 
             <div className="main-content">
-                <Sidebar onAddNode={addNode} />
+                <Sidebar
+                    onAddNode={addNode}
+                    segments={segments}
+                    onAddSegment={addSegment}
+                    onDeleteSegment={deleteSegment}
+                    onUpdateSegment={updateSegment}
+                />
 
                 <Canvas
                     nodes={nodes}
@@ -360,6 +411,7 @@ function App() {
                     selectedNode={selectedNode}
                     isConnecting={isConnecting}
                     connectingFrom={connectingFrom}
+                    segments={segments}
                     onSelectNode={setSelectedNode}
                     onUpdateNodePosition={updateNodePosition}
                     onUpdateNodeText={updateNodeText}

@@ -1,4 +1,14 @@
 import React, { useState, useRef, useEffect } from "react";
+import {
+    Button,
+    TextField,
+    Box,
+    Typography,
+    Toolbar as MuiToolbar,
+    AppBar,
+} from "@mui/material";
+import { Description, FolderOpen, Save } from "@mui/icons-material";
+import logo from "../assets/workflow_navigator_logo.svg";
 
 const Toolbar = ({
     onNew,
@@ -42,55 +52,106 @@ const Toolbar = ({
         title || (currentFile ? currentFile.split("/").pop() : "Untitled");
 
     return (
-        <div className="toolbar">
-            <button onClick={onNew} title="New File (Ctrl+N)">
-                📄 New
-            </button>
-            <button onClick={onLoad} title="Load File (Ctrl+O)">
-                📂 Load
-            </button>
-            <button onClick={onSave} title="Save File (Ctrl+S)">
-                💾 Save{isDirty ? "*" : ""}
-            </button>
-            <div
-                className="title-section"
-                style={{ marginLeft: "auto", fontSize: "14px", color: "#666" }}
-            >
-                {isEditingTitle ? (
-                    <input
-                        ref={titleInputRef}
-                        type="text"
-                        value={editTitle}
-                        onChange={(e) => setEditTitle(e.target.value)}
-                        onBlur={handleTitleSubmit}
-                        onKeyDown={handleTitleKeyPress}
+        <AppBar
+            position="static"
+            color="default"
+            elevation={1}
+            sx={{ borderBottom: "1px solid #ddd" }}
+        >
+            <MuiToolbar sx={{ gap: 2, minHeight: "80px !important" }}>
+                <Box sx={{ display: "flex", alignItems: "center", mr: 2 }}>
+                    <img
+                        src={logo}
+                        alt="Workflow Navigator"
                         style={{
-                            border: "1px solid #ccc",
-                            borderRadius: "3px",
-                            padding: "2px 6px",
-                            fontSize: "14px",
-                            background: "white",
-                            minWidth: "150px",
+                            height: "64px",
+                            width: "auto",
                         }}
                     />
-                ) : (
-                    <span
-                        onClick={handleTitleClick}
-                        style={{
-                            cursor: "pointer",
-                            padding: "2px 6px",
-                            borderRadius: "3px",
-                            border: "1px solid transparent",
-                        }}
-                        className="editable-title"
-                        title="Click to edit title"
-                    >
-                        {displayTitle}
-                        {isDirty ? " (modified)" : ""}
-                    </span>
-                )}
-            </div>
-        </div>
+                </Box>
+
+                <Button
+                    variant="outlined"
+                    size="small"
+                    startIcon={<Description />}
+                    onClick={onNew}
+                    title="New File (Ctrl+N)"
+                    sx={{ textTransform: "none" }}
+                >
+                    New
+                </Button>
+
+                <Button
+                    variant="outlined"
+                    size="small"
+                    startIcon={<FolderOpen />}
+                    onClick={onLoad}
+                    title="Load File (Ctrl+O)"
+                    sx={{ textTransform: "none" }}
+                >
+                    Load
+                </Button>
+
+                <Button
+                    variant="outlined"
+                    size="small"
+                    startIcon={<Save />}
+                    onClick={onSave}
+                    title="Save File (Ctrl+S)"
+                    sx={{ textTransform: "none" }}
+                    color={isDirty ? "warning" : "primary"}
+                >
+                    Save{isDirty ? " *" : ""}
+                </Button>
+
+                <Box
+                    sx={{
+                        marginLeft: "auto",
+                        display: "flex",
+                        alignItems: "center",
+                    }}
+                >
+                    {isEditingTitle ? (
+                        <TextField
+                            inputRef={titleInputRef}
+                            value={editTitle}
+                            onChange={(e) => setEditTitle(e.target.value)}
+                            onBlur={handleTitleSubmit}
+                            onKeyDown={handleTitleKeyPress}
+                            variant="outlined"
+                            size="small"
+                            sx={{
+                                minWidth: "200px",
+                                "& .MuiOutlinedInput-root": {
+                                    fontSize: "18px",
+                                    fontWeight: 600,
+                                },
+                            }}
+                        />
+                    ) : (
+                        <Typography
+                            variant="h6"
+                            onClick={handleTitleClick}
+                            sx={{
+                                cursor: "pointer",
+                                padding: "4px 8px",
+                                borderRadius: "3px",
+                                border: "1px solid transparent",
+                                fontWeight: 600,
+                                fontSize: "18px",
+                                "&:hover": {
+                                    backgroundColor: "rgba(0, 0, 0, 0.04)",
+                                },
+                            }}
+                            title="Click to edit title"
+                        >
+                            {displayTitle}
+                            {isDirty ? " (modified)" : ""}
+                        </Typography>
+                    )}
+                </Box>
+            </MuiToolbar>
+        </AppBar>
     );
 };
 

@@ -1,6 +1,7 @@
 import React, { useRef } from "react";
 import FlowchartNode from "./FlowchartNode";
 import Connection from "./Connection";
+import apLogo from "../assets/ap_logo.svg";
 
 const Canvas = ({
     nodes,
@@ -8,6 +9,7 @@ const Canvas = ({
     selectedNode,
     isConnecting,
     connectingFrom,
+    segments,
     onSelectNode,
     onUpdateNodePosition,
     onUpdateNodeText,
@@ -106,6 +108,7 @@ const Canvas = ({
                     <FlowchartNode
                         key={node.id}
                         node={node}
+                        segments={segments}
                         isSelected={selectedNode === node.id}
                         isConnecting={isConnecting}
                         isConnectingFrom={
@@ -255,6 +258,27 @@ const Canvas = ({
                             );
                         })}
                 </svg>
+
+                {/* Watermark logo */}
+                <div
+                    style={{
+                        position: "absolute",
+                        top: "20px",
+                        left: "20px",
+                        opacity: 0.1,
+                        pointerEvents: "none",
+                        zIndex: 1,
+                    }}
+                >
+                    <img
+                        src={apLogo}
+                        alt="AP Logo Watermark"
+                        style={{
+                            width: "200px",
+                            height: "auto",
+                        }}
+                    />
+                </div>
 
                 {nodes.length === 0 && (
                     <div
