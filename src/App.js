@@ -3,6 +3,7 @@ import Canvas from "./components/Canvas";
 import Sidebar from "./components/Sidebar";
 import Toolbar from "./components/Toolbar";
 import StatusBar from "./components/StatusBar";
+import DecisionSelector from "./components/DecisionSelector";
 import "./App.css";
 
 function App() {
@@ -385,90 +386,63 @@ function App() {
     }, [isDirty, clearCanvas, loadFile, saveFile]);
 
     return (
-        <div className="app">
-            <Toolbar
-                onNew={clearCanvas}
-                onLoad={loadFileDialog}
-                onSave={saveFile}
-                title={title}
-                onTitleChange={updateTitle}
-                isDirty={isDirty}
-                currentFile={currentFile}
-            />
-
-            <div className="main-content">
-                <Sidebar
-                    onAddNode={addNode}
-                    segments={segments}
-                    onAddSegment={addSegment}
-                    onDeleteSegment={deleteSegment}
-                    onUpdateSegment={updateSegment}
+        <>
+            <div className="app">
+                <Toolbar
+                    onNew={clearCanvas}
+                    onLoad={loadFileDialog}
+                    onSave={saveFile}
+                    title={title}
+                    onTitleChange={updateTitle}
+                    isDirty={isDirty}
+                    currentFile={currentFile}
                 />
 
-                <Canvas
-                    nodes={nodes}
-                    connections={connections}
+                <div className="main-content">
+                    <Sidebar
+                        onAddNode={addNode}
+                        segments={segments}
+                        onAddSegment={addSegment}
+                        onDeleteSegment={deleteSegment}
+                        onUpdateSegment={updateSegment}
+                    />
+
+                    <Canvas
+                        nodes={nodes}
+                        connections={connections}
+                        selectedNode={selectedNode}
+                        isConnecting={isConnecting}
+                        connectingFrom={connectingFrom}
+                        segments={segments}
+                        onSelectNode={setSelectedNode}
+                        onUpdateNodePosition={updateNodePosition}
+                        onUpdateNodeText={updateNodeText}
+                        onUpdateNode={updateNode}
+                        onDeleteNode={deleteNode}
+                        onAddNode={addNode}
+                        onStartConnection={startConnection}
+                        onCompleteConnection={completeConnection}
+                        onCancelConnection={cancelConnection}
+                        onDeleteConnection={deleteConnection}
+                    />
+
+                    {/* Decision Connection Selector (Material UI) */}
+                    <DecisionSelector
+                        open={showDecisionSelector}
+                        onSelect={completeDecisionConnection}
+                        onCancel={cancelDecisionConnection}
+                    />
+                </div>
+
+                <StatusBar
+                    nodeCount={nodes.length}
+                    connectionCount={connections.length}
                     selectedNode={selectedNode}
+                    isDirty={isDirty}
                     isConnecting={isConnecting}
-                    connectingFrom={connectingFrom}
-                    segments={segments}
-                    onSelectNode={setSelectedNode}
-                    onUpdateNodePosition={updateNodePosition}
-                    onUpdateNodeText={updateNodeText}
-                    onUpdateNode={updateNode}
-                    onDeleteNode={deleteNode}
-                    onAddNode={addNode}
-                    onStartConnection={startConnection}
-                    onCompleteConnection={completeConnection}
-                    onCancelConnection={cancelConnection}
-                    onDeleteConnection={deleteConnection}
                 />
-
-                {/* Decision Connection Selector */}
-                {showDecisionSelector && (
-                    <div className="decision-selector-overlay">
-                        <div className="decision-selector">
-                            <h3>Choose Connection Type</h3>
-                            <p>
-                                Select the type of connection from the decision:
-                            </p>
-                            <div className="decision-buttons">
-                                <button
-                                    className="decision-btn yes-btn"
-                                    onClick={() =>
-                                        completeDecisionConnection("yes")
-                                    }
-                                >
-                                    Yes
-                                </button>
-                                <button
-                                    className="decision-btn no-btn"
-                                    onClick={() =>
-                                        completeDecisionConnection("no")
-                                    }
-                                >
-                                    No
-                                </button>
-                            </div>
-                            <button
-                                className="cancel-btn"
-                                onClick={cancelDecisionConnection}
-                            >
-                                Cancel
-                            </button>
-                        </div>
-                    </div>
-                )}
             </div>
-
-            <StatusBar
-                nodeCount={nodes.length}
-                connectionCount={connections.length}
-                selectedNode={selectedNode}
-                isDirty={isDirty}
-                isConnecting={isConnecting}
-            />
-        </div>
+        </>
     );
 }
 

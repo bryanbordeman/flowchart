@@ -73,6 +73,9 @@ const FlowchartNode = ({
         const gridSize = 20;
         let snappedX = Math.round(data.x / gridSize) * gridSize;
         let snappedY = Math.round(data.y / gridSize) * gridSize;
+        // Clamp so node cannot be moved left/up past origin
+        snappedX = Math.max(0, snappedX);
+        snappedY = Math.max(0, snappedY);
 
         onUpdatePosition(node.id, { x: snappedX, y: snappedY });
     };
@@ -198,47 +201,53 @@ const FlowchartNode = ({
                             : "Drag from connection ports to create connections"
                     }
                 >
-                    <IconButton
-                        size="small"
-                        onClick={handleDelete}
-                        title="Delete node"
-                        sx={{
-                            position: "absolute",
-                            top: -6,
-                            right: -6,
-                            width: 20,
-                            height: 20,
-                            backgroundColor: "white",
-                            border: "1px solid #ddd",
-                            "&:hover": {
-                                backgroundColor: "#ffebee",
-                                borderColor: "#f44336",
-                            },
-                        }}
-                    >
-                        <Delete sx={{ fontSize: 14 }} color="error" />
-                    </IconButton>
+                    {/* Delete button - only show when selected */}
+                    {isSelected && (
+                        <IconButton
+                            size="small"
+                            onClick={handleDelete}
+                            title="Delete node"
+                            sx={{
+                                position: "absolute",
+                                top: -6,
+                                right: -6,
+                                width: 20,
+                                height: 20,
+                                backgroundColor: "white",
+                                border: "1px solid #ddd",
+                                "&:hover": {
+                                    backgroundColor: "#ffebee",
+                                    borderColor: "#f44336",
+                                },
+                            }}
+                        >
+                            <Delete sx={{ fontSize: 14 }} color="error" />
+                        </IconButton>
+                    )}
 
-                    <IconButton
-                        size="small"
-                        onClick={handleEditModal}
-                        title="Edit node properties"
-                        sx={{
-                            position: "absolute",
-                            top: -6,
-                            right: 16,
-                            width: 20,
-                            height: 20,
-                            backgroundColor: "white",
-                            border: "1px solid #ddd",
-                            "&:hover": {
-                                backgroundColor: "#e3f2fd",
-                                borderColor: "#2196f3",
-                            },
-                        }}
-                    >
-                        <Edit sx={{ fontSize: 14 }} color="primary" />
-                    </IconButton>
+                    {/* Edit button - only show when selected */}
+                    {isSelected && (
+                        <IconButton
+                            size="small"
+                            onClick={handleEditModal}
+                            title="Edit node properties"
+                            sx={{
+                                position: "absolute",
+                                top: -6,
+                                right: 16,
+                                width: 20,
+                                height: 20,
+                                backgroundColor: "white",
+                                border: "1px solid #ddd",
+                                "&:hover": {
+                                    backgroundColor: "#e3f2fd",
+                                    borderColor: "#2196f3",
+                                },
+                            }}
+                        >
+                            <Edit sx={{ fontSize: 14 }} color="primary" />
+                        </IconButton>
+                    )}
 
                     {/* Connection Ports */}
                     {node.type !== "connector" && (

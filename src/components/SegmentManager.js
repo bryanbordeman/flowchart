@@ -65,7 +65,14 @@ const SegmentManager = ({
     };
 
     return (
-        <Box>
+        <Box
+            sx={{
+                display: "flex",
+                flexDirection: "column",
+                height: "100vh",
+                minHeight: 0,
+            }}
+        >
             <Box
                 sx={{
                     display: "flex",
@@ -74,7 +81,9 @@ const SegmentManager = ({
                     mb: 2,
                 }}
             >
-                <Typography variant="h6">Segments</Typography>
+                <Typography variant="h6" gutterBottom sx={{ fontSize: 16 }}>
+                    Segments
+                </Typography>
                 <IconButton
                     size="small"
                     onClick={() => setIsAddingSegment(true)}
@@ -132,9 +141,26 @@ const SegmentManager = ({
                 </Paper>
             )}
 
-            <Stack spacing={1} sx={{ maxHeight: 300, overflowY: "auto" }}>
+            <Stack
+                spacing={0.5}
+                sx={{ flex: 1, minHeight: 0, overflowY: "auto", pb: 2 }}
+            >
                 {segments.map((segment) => (
-                    <Paper key={segment.id} elevation={1} sx={{ p: 1.5 }}>
+                    <Paper
+                        key={segment.id}
+                        elevation={0}
+                        sx={{
+                            p: 1,
+                            borderRadius: 1,
+                            boxShadow: "none",
+                            mb: 0.5,
+                            border: "1px solid #eee",
+                            background: "#fff",
+                            minHeight: 40,
+                            display: "flex",
+                            alignItems: "center",
+                        }}
+                    >
                         <Box
                             sx={{
                                 display: "flex",
@@ -276,6 +302,15 @@ const SegmentManager = ({
                         </Dialog>
                     </Paper>
                 ))}
+                {/* Spacer to guarantee last item visibility above bottom bar */}
+                <Box
+                    sx={{
+                        height: 96,
+                        minHeight: 96,
+                        pointerEvents: "none",
+                        background: "transparent",
+                    }}
+                />
             </Stack>
 
             {segments.length === 0 && !isAddingSegment && (

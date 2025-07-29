@@ -23,11 +23,11 @@ const Canvas = ({
 }) => {
     const canvasRef = useRef(null);
 
+    // Deselect node when clicking on canvas (not on a node)
     const handleCanvasClick = (e) => {
-        // Deselect all nodes when clicking on empty canvas
+        // Only deselect if the click is directly on the canvas (not a child)
         if (e.target === canvasRef.current) {
             onSelectNode(null);
-            // Cancel connection mode if active
             if (isConnecting) {
                 onCancelConnection();
             }
@@ -40,8 +40,8 @@ const Canvas = ({
 
         if (nodeType) {
             const rect = canvasRef.current.getBoundingClientRect();
-            const rawX = e.clientX - rect.left - 60; // Offset to center the node
-            const rawY = e.clientY - rect.top - 30;
+            const rawX = e.clientX - rect.left - 60; // Offset to center the 120px wide node
+            const rawY = e.clientY - rect.top - 40; // Offset to center the 80px tall node
 
             // Snap to grid (20px)
             const gridSize = 20;
@@ -58,11 +58,63 @@ const Canvas = ({
         e.dataTransfer.dropEffect = "copy";
     };
 
+    // Deselect node when clicking anywhere in canvas-container (outside nodes)
+    const handleContainerClick = (e) => {
+        // Only deselect if the click is NOT inside a node
+        if (
+            !e.target.classList.contains("flowchart-node") &&
+            !e.target.closest(".flowchart-node")
+        ) {
+            onSelectNode(null);
+            if (isConnecting) {
+                onCancelConnection();
+            }
+        }
+    };
+
+    // Calculate dynamic canvas size based on node positions
+    const margin = 600; // Extra space around nodes for scrolling (increased for more expansion)
+    let minX = 0,
+        minY = 0,
+        maxX = 1200,
+        maxY = 800; // Defaults
+    if (nodes.length > 0) {
+        minX = Math.min(...nodes.map((n) => n.position.x));
+        minY = Math.min(...nodes.map((n) => n.position.y));
+        maxX = Math.max(...nodes.map((n) => n.position.x + 120));
+        maxY = Math.max(
+            ...nodes.map(
+                (n) => n.position.y + (n.type === "decision" ? 120 : 80)
+            )
+        );
+        // Add margin for scrolling, but do not allow canvas to expand left/up past origin
+        minX = Math.max(0, minX - margin);
+        minY = Math.max(0, minY - margin);
+        maxX = maxX + margin;
+        maxY = maxY + margin;
+    }
+
+    const canvasStyle = {
+        position: "relative",
+        width: maxX - minX,
+        height: maxY - minY,
+        minWidth: "100vw",
+        minHeight: "100vh",
+        left: minX < 0 ? -minX : 0,
+        top: minY < 0 ? -minY : 0,
+        background: "inherit",
+    };
+
     return (
-        <div className="canvas-container">
+        <div
+            className="canvas-container"
+            onClick={handleContainerClick}
+            style={{ overflow: "auto", width: "100%", height: "100%" }}
+        >
             <div
                 ref={canvasRef}
                 className="canvas"
+                style={canvasStyle}
                 onClick={handleCanvasClick}
                 onDrop={handleDrop}
                 onDragOver={handleDragOver}
