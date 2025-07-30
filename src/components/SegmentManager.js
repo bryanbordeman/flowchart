@@ -78,11 +78,11 @@ const SegmentManager = ({
                     display: "flex",
                     justifyContent: "space-between",
                     alignItems: "center",
-                    mb: 2,
+                    // mb: 2,
                 }}
             >
                 <Typography variant="h6" gutterBottom sx={{ fontSize: 16 }}>
-                    Segments
+                    Departments
                 </Typography>
                 <IconButton
                     size="small"
@@ -101,7 +101,7 @@ const SegmentManager = ({
                         size="small"
                         value={newSegmentName}
                         onChange={(e) => setNewSegmentName(e.target.value)}
-                        placeholder="Segment name"
+                        placeholder="Department name"
                         autoFocus
                         onKeyPress={(e) => {
                             if (e.key === "Enter") {
