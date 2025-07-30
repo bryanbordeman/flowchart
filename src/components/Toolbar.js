@@ -56,7 +56,7 @@ const Toolbar = ({
             position="static"
             color="default"
             elevation={1}
-            sx={{ borderBottom: "1px solid #ddd" }}
+            sx={{ borderBottom: "1px solid #008093" }}
         >
             <MuiToolbar sx={{ gap: 2, minHeight: "80px !important" }}>
                 <Box sx={{ display: "flex", alignItems: "center", mr: 2 }}>

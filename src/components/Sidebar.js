@@ -99,7 +99,13 @@ const Sidebar = ({
             <Typography
                 variant="h6"
                 gutterBottom
-                sx={{ mb: 1, fontSize: 16, flexShrink: 0 }}
+                sx={{
+                    mb: 1,
+                    pb: 1,
+                    fontSize: 16,
+                    flexShrink: 0,
+                    borderBottom: "1px solid #008093",
+                }}
             >
                 Components
             </Typography>
@@ -169,7 +175,6 @@ const Sidebar = ({
                     </Button>
                 ))}
             </Box>
-            <Divider sx={{ my: 1, flexShrink: 0 }} />
             <Box
                 sx={{
                     flex: 1,

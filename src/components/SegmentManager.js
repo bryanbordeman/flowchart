@@ -71,6 +71,7 @@ const SegmentManager = ({
                 flexDirection: "column",
                 height: "100vh",
                 minHeight: 0,
+                mt: 2,
             }}
         >
             <Box
@@ -78,7 +79,8 @@ const SegmentManager = ({
                     display: "flex",
                     justifyContent: "space-between",
                     alignItems: "center",
-                    // mb: 2,
+                    borderBottom: "1px solid #008093",
+                    mb: 2,
                 }}
             >
                 <Typography variant="h6" gutterBottom sx={{ fontSize: 16 }}>

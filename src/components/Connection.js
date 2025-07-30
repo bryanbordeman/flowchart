@@ -93,19 +93,16 @@ const Connection = ({ connection, nodes, onDelete }) => {
     const dx = endPoint.x - startPoint.x;
     const dy = endPoint.y - startPoint.y;
     const distance = Math.sqrt(dx * dx + dy * dy);
-
     if (distance === 0) return null;
 
     // Determine if this connection is from a decision node
     const isFromDecision = fromNode.type === "decision";
-
     // Calculate label position (further from the start point for decision labels)
     const labelOffset = isFromDecision ? 35 : 20;
     const labelPoint = {
         x: startPoint.x + (dx * labelOffset) / distance,
         y: startPoint.y + (dy * labelOffset) / distance,
     };
-
     // Determine Yes/No label based on decision type
     let decisionLabel = "";
     if (isFromDecision) {
@@ -115,34 +112,70 @@ const Connection = ({ connection, nodes, onDelete }) => {
             decisionLabel = "No";
         }
     }
-
     // Midpoint for delete button
     const midPoint = {
         x: (startPoint.x + endPoint.x) / 2,
         y: (startPoint.y + endPoint.y) / 2,
     };
-
     const handleDelete = (e) => {
         e.stopPropagation();
         onDelete(connection.id);
     };
 
+    // Polyline logic for vertical connections
+    let points;
+    // Only draw right-angle if both ports are 'top' or both are 'bottom'
+    if (
+        (connection.fromPort === "top" && connection.toPort === "top") ||
+        (connection.fromPort === "bottom" && connection.toPort === "bottom")
+    ) {
+        // Right angle: vertical, horizontal, vertical (3 lines)
+        const lead = 62; // px length for both verticals
+        // Always offset away from the node (down for bottom, up for top)
+        let firstY, lastY;
+        if (connection.fromPort === "top") {
+            firstY = startPoint.y - lead;
+        } else {
+            firstY = startPoint.y + lead;
+        }
+        if (connection.toPort === "top") {
+            lastY = endPoint.y - lead;
+        } else {
+            lastY = endPoint.y + lead;
+        }
+        points = [
+            `${startPoint.x},${startPoint.y}`,
+            `${startPoint.x},${firstY}`,
+            `${endPoint.x},${firstY}`,
+            `${endPoint.x},${lastY}`,
+            `${endPoint.x},${endPoint.y}`,
+        ].join(" ");
+    }
+
     return (
         <g className="connection-group">
-            {/* Main connection line */}
-            <line
-                x1={startPoint.x}
-                y1={startPoint.y}
-                x2={endPoint.x}
-                y2={endPoint.y}
-                stroke="#4682B4"
-                strokeWidth="2"
-                className="connection-line"
-                markerEnd="url(#arrowhead)"
-            />
-
-            {/* Yes/No label for decision connections - now handled in Canvas layer */}
-            {/* Decision labels are rendered in a separate SVG layer above nodes */}
+            {/* Main connection line or polyline */}
+            {points ? (
+                <polyline
+                    points={points}
+                    fill="none"
+                    stroke="#4682B4"
+                    strokeWidth="2"
+                    className="connection-line"
+                    markerEnd="url(#arrowhead)"
+                />
+            ) : (
+                <line
+                    x1={startPoint.x}
+                    y1={startPoint.y}
+                    x2={endPoint.x}
+                    y2={endPoint.y}
+                    stroke="#4682B4"
+                    strokeWidth="2"
+                    className="connection-line"
+                    markerEnd="url(#arrowhead)"
+                />
+            )}
 
             {/* Invisible clickable area for delete */}
             <circle
@@ -154,7 +187,6 @@ const Connection = ({ connection, nodes, onDelete }) => {
                 style={{ cursor: "pointer" }}
                 onClick={handleDelete}
             />
-
             {/* Visible delete button (shown on hover) */}
             <circle
                 cx={midPoint.x}
@@ -169,7 +201,6 @@ const Connection = ({ connection, nodes, onDelete }) => {
                     transition: "opacity 0.2s",
                 }}
             />
-
             {/* Delete X text */}
             <text
                 x={midPoint.x}
