@@ -20,19 +20,17 @@ const Canvas = ({
     onCompleteConnection,
     onCancelConnection,
     onDeleteConnection,
+    zoom,
+    onZoomWheel,
 }) => {
+    // Ref for the canvas DOM element
     const canvasRef = useRef(null);
 
-    // Deselect node when clicking on canvas (not on a node)
-    const handleCanvasClick = (e) => {
-        // Only deselect if the click is directly on the canvas (not a child)
-        if (e.target === canvasRef.current) {
-            onSelectNode(null);
-            if (isConnecting) {
-                onCancelConnection();
-            }
-        }
-    };
+    // Fallback for missing onZoomWheel
+    const handleWheel = onZoomWheel || (() => {});
+
+    // Fallback for missing handleCanvasClick
+    const handleCanvasClick = () => {};
 
     const handleDrop = (e) => {
         e.preventDefault();
@@ -40,8 +38,11 @@ const Canvas = ({
 
         if (nodeType) {
             const rect = canvasRef.current.getBoundingClientRect();
-            const rawX = e.clientX - rect.left - 60; // Offset to center the 120px wide node
-            const rawY = e.clientY - rect.top - 40; // Offset to center the 80px tall node
+            // Adjust for zoom so drop matches visible grid
+            const scaledX = (e.clientX - rect.left) / zoom;
+            const scaledY = (e.clientY - rect.top) / zoom;
+            const rawX = scaledX - 60; // Offset to center the 120px wide node
+            const rawY = scaledY - 40; // Offset to center the 80px tall node
 
             // Snap to grid (20px)
             const gridSize = 20;
@@ -52,10 +53,11 @@ const Canvas = ({
 
             onAddNode(nodeType, position);
         }
+        e.dataTransfer.dropEffect = "copy";
     };
+
     const handleDragOver = (e) => {
         e.preventDefault();
-        e.dataTransfer.dropEffect = "copy";
     };
 
     // Deselect node when clicking anywhere in canvas-container (outside nodes)
@@ -102,19 +104,34 @@ const Canvas = ({
         minHeight: "100vh",
         left: minX < 0 ? -minX : 0,
         top: minY < 0 ? -minY : 0,
-        background: "inherit",
+        background: `
+            linear-gradient(to right, #e0e0e0 1px, transparent 1px),
+            linear-gradient(to bottom, #e0e0e0 1px, transparent 1px)
+        `,
+        backgroundSize: "20px 20px",
     };
 
     return (
         <div
             className="canvas-container"
             onClick={handleContainerClick}
-            style={{ overflow: "auto", width: "100%", height: "100%" }}
+            style={{
+                overflow: "auto",
+                width: "100%",
+                height: "100%",
+                position: "relative",
+            }}
+            onWheel={handleWheel}
         >
             <div
                 ref={canvasRef}
                 className="canvas"
-                style={canvasStyle}
+                style={{
+                    ...canvasStyle,
+                    transform: `scale(${zoom})`,
+                    transformOrigin: "0 0",
+                    background: "none",
+                }}
                 onClick={handleCanvasClick}
                 onDrop={handleDrop}
                 onDragOver={handleDragOver}
@@ -145,7 +162,6 @@ const Canvas = ({
                             <polygon points="0 0, 8 3, 0 6" fill="#4682B4" />
                         </marker>
                     </defs>
-
                     {connections.map((connection) => (
                         <Connection
                             key={connection.id}
@@ -155,7 +171,6 @@ const Canvas = ({
                         />
                     ))}
                 </svg>
-
                 {nodes.map((node) => (
                     <FlowchartNode
                         key={node.id}
@@ -175,7 +190,6 @@ const Canvas = ({
                         onCompleteConnection={onCompleteConnection}
                     />
                 ))}
-
                 {/* SVG overlay for decision labels - rendered above nodes */}
                 <svg
                     className="decision-labels-layer"
@@ -208,17 +222,13 @@ const Canvas = ({
                                 (n) => n.id === connection.to
                             );
                             if (!fromNode || !toNode) return null;
-
-                            // Calculate positions (copied from Connection component logic)
+                            // ...existing code for getPortPosition and label rendering...
                             const getPortPosition = (node, port) => {
                                 const nodeX = node.position.x;
                                 const nodeY = node.position.y;
-
                                 if (node.type === "decision") {
-                                    // Decision is a 120x120 container with centered diamond
-                                    const centerX = nodeX + 60; // Center of 120px diamond container
+                                    const centerX = nodeX + 60;
                                     const centerY = nodeY + 60;
-
                                     switch (port) {
                                         case "top":
                                             return { x: centerX, y: nodeY };
@@ -238,11 +248,8 @@ const Canvas = ({
                                             return { x: centerX, y: centerY };
                                     }
                                 }
-
-                                // Standard nodes (process, start, end, data) - 120x80
-                                const centerX = nodeX + 60; // Center of 120px width
-                                const centerY = nodeY + 40; // Center of 80px height
-
+                                const centerX = nodeX + 60;
+                                const centerY = nodeY + 40;
                                 switch (port) {
                                     case "top":
                                         return { x: centerX, y: nodeY };
@@ -256,7 +263,6 @@ const Canvas = ({
                                         return { x: centerX, y: centerY };
                                 }
                             };
-
                             const startPoint = getPortPosition(
                                 fromNode,
                                 connection.fromPort
@@ -268,20 +274,16 @@ const Canvas = ({
                             const dx = endPoint.x - startPoint.x;
                             const dy = endPoint.y - startPoint.y;
                             const distance = Math.sqrt(dx * dx + dy * dy);
-
                             if (distance === 0) return null;
-
                             const labelOffset = 35;
                             const labelPoint = {
                                 x: startPoint.x + (dx * labelOffset) / distance,
                                 y: startPoint.y + (dy * labelOffset) / distance,
                             };
-
                             const decisionLabel =
                                 connection.decisionType === "yes"
                                     ? "Yes"
                                     : "No";
-
                             return (
                                 <g key={`label-${connection.id}`}>
                                     <rect
@@ -310,7 +312,6 @@ const Canvas = ({
                             );
                         })}
                 </svg>
-
                 {/* Watermark logo */}
                 <div
                     style={{
@@ -331,7 +332,6 @@ const Canvas = ({
                         }}
                     />
                 </div>
-
                 {nodes.length === 0 && (
                     <div
                         style={{

@@ -7,6 +7,19 @@ import DecisionSelector from "./components/DecisionSelector";
 import "./App.css";
 
 function App() {
+    // Zoom state
+    const [zoom, setZoom] = useState(1);
+
+    // Mouse wheel zoom handler
+    const handleZoomWheel = useCallback((e) => {
+        if (e.ctrlKey || e.metaKey) {
+            e.preventDefault();
+            let delta = e.deltaY < 0 ? 0.1 : -0.1;
+            setZoom((prev) =>
+                Math.min(2, Math.max(0.2, +(prev + delta).toFixed(2)))
+            );
+        }
+    }, []);
     const [nodes, setNodes] = useState([]);
     const [connections, setConnections] = useState([]);
     const [selectedNode, setSelectedNode] = useState(null);
@@ -398,7 +411,7 @@ function App() {
                     currentFile={currentFile}
                 />
 
-                <div className="main-content">
+                <div className="main-content" style={{ position: "relative" }}>
                     <Sidebar
                         onAddNode={addNode}
                         segments={segments}
@@ -424,7 +437,54 @@ function App() {
                         onCompleteConnection={completeConnection}
                         onCancelConnection={cancelConnection}
                         onDeleteConnection={deleteConnection}
+                        zoom={zoom}
+                        onZoomWheel={handleZoomWheel}
                     />
+
+                    {/* Zoom slider in bottom right */}
+                    <div
+                        style={{
+                            position: "absolute",
+                            right: 24,
+                            bottom: 24,
+                            zIndex: 200,
+                        }}
+                    >
+                        <div
+                            style={{
+                                background: "#fff",
+                                borderRadius: 8,
+                                boxShadow: "0 2px 8px #0002",
+                                padding: 12,
+                                display: "flex",
+                                alignItems: "center",
+                            }}
+                        >
+                            <span style={{ marginRight: 8, fontWeight: 500 }}>
+                                Zoom
+                            </span>
+                            <input
+                                type="range"
+                                min={0.2}
+                                max={2}
+                                step={0.01}
+                                value={zoom}
+                                onChange={(e) =>
+                                    setZoom(Number(e.target.value))
+                                }
+                                style={{ width: 120 }}
+                            />
+                            <span
+                                style={{
+                                    marginLeft: 8,
+                                    minWidth: 40,
+                                    textAlign: "right",
+                                }}
+                            >
+                                {Math.round(zoom * 100)}%
+                            </span>
+                        </div>
+                    </div>
 
                     {/* Decision Connection Selector (Material UI) */}
                     <DecisionSelector

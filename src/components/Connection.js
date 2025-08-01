@@ -124,14 +124,21 @@ const Connection = ({ connection, nodes, onDelete }) => {
 
     // Polyline logic for vertical connections
     let points;
-    // Only draw right-angle if both ports are 'top' or both are 'bottom'
+    // Draw right-angle if both ports are 'top' or both are 'bottom',
+    // or if the connection is between two vertically stacked components (same x)
+    const isVerticalStack =
+        startPoint.x === endPoint.x && startPoint.y !== endPoint.y;
+    const isSideStack =
+        startPoint.x === endPoint.x &&
+        startPoint.y !== endPoint.y &&
+        ((connection.fromPort === "left" && connection.toPort === "left") ||
+            (connection.fromPort === "right" && connection.toPort === "right"));
     if (
         (connection.fromPort === "top" && connection.toPort === "top") ||
         (connection.fromPort === "bottom" && connection.toPort === "bottom")
     ) {
         // Right angle: vertical, horizontal, vertical (3 lines)
-        const lead = 62; // px length for both verticals
-        // Always offset away from the node (down for bottom, up for top)
+        const lead = 62;
         let firstY, lastY;
         if (connection.fromPort === "top") {
             firstY = startPoint.y - lead;
@@ -148,6 +155,27 @@ const Connection = ({ connection, nodes, onDelete }) => {
             `${startPoint.x},${firstY}`,
             `${endPoint.x},${firstY}`,
             `${endPoint.x},${lastY}`,
+            `${endPoint.x},${endPoint.y}`,
+        ].join(" ");
+    } else if (isSideStack) {
+        // Right angle: horizontal, vertical, horizontal (3 lines)
+        const lead = 62;
+        let firstX, lastX;
+        if (connection.fromPort === "left") {
+            firstX = startPoint.x - lead;
+        } else {
+            firstX = startPoint.x + lead;
+        }
+        if (connection.toPort === "left") {
+            lastX = endPoint.x - lead;
+        } else {
+            lastX = endPoint.x + lead;
+        }
+        points = [
+            `${startPoint.x},${startPoint.y}`,
+            `${firstX},${startPoint.y}`,
+            `${firstX},${endPoint.y}`,
+            `${lastX},${endPoint.y}`,
             `${endPoint.x},${endPoint.y}`,
         ].join(" ");
     }
