@@ -86,7 +86,7 @@ const FlowchartNode = ({
             // Complete connection to this node
             onCompleteConnection(node.id);
         } else {
-            onSelect(node.id);
+            onSelect(node.id, e);
         }
     };
 

@@ -60,7 +60,7 @@ const Container = ({
     const handleClick = (e) => {
         e.stopPropagation();
         console.log("Container selected:", container.id); // Keep this to verify selection works
-        onSelect(container.id);
+        onSelect(container.id, e);
     };
 
     const handleColorSelect = (colorOption) => {

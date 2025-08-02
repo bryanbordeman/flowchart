@@ -8,6 +8,8 @@ const Canvas = ({
     nodes,
     connections,
     selectedNode,
+    selectedNodes,
+    selectedContainers,
     isConnecting,
     connectingFrom,
     segments,
@@ -15,7 +17,11 @@ const Canvas = ({
     selectedContainer,
     isDrawingContainer,
     onSelectNode,
+    onToggleNodeSelection,
+    onToggleContainerSelection,
+    onClearAllSelections,
     onUpdateNodePosition,
+    onHandleGroupMovement,
     onUpdateNodeText,
     onUpdateNode,
     onDeleteNode,
@@ -111,8 +117,9 @@ const Canvas = ({
     const handleCanvasClick = (e) => {
         // Only deselect if clicking directly on the canvas (not on nodes or containers)
         if (e.target === canvasRef.current && !isDrawingContainer) {
-            onSelectNode(null);
-            if (onSelectContainer) onSelectContainer(null);
+            if (onClearAllSelections) {
+                onClearAllSelections();
+            }
             if (isConnecting) {
                 onCancelConnection();
             }
@@ -247,9 +254,34 @@ const Canvas = ({
                     <Container
                         key={container.id}
                         container={container}
-                        isSelected={selectedContainer === container.id}
-                        onSelect={onSelectContainer}
-                        onUpdate={onUpdateContainer}
+                        isSelected={
+                            selectedContainer === container.id ||
+                            selectedContainers.includes(container.id)
+                        }
+                        onSelect={(containerId, event) => {
+                            if (event && (event.ctrlKey || event.metaKey)) {
+                                onToggleContainerSelection(containerId, true);
+                            } else {
+                                onSelectContainer(containerId);
+                            }
+                        }}
+                        onUpdate={(containerId, updates) => {
+                            // Check if this is a position update
+                            if (
+                                updates.hasOwnProperty("x") &&
+                                updates.hasOwnProperty("y")
+                            ) {
+                                // Use group movement for position updates
+                                onHandleGroupMovement(
+                                    containerId,
+                                    { x: updates.x, y: updates.y },
+                                    true
+                                );
+                            } else {
+                                // Use regular update for other properties (width, height, color, etc.)
+                                onUpdateContainer(containerId, updates);
+                            }
+                        }}
                         onDelete={onDeleteContainer}
                         zoom={zoom}
                     />
@@ -312,13 +344,24 @@ const Canvas = ({
                         key={node.id}
                         node={node}
                         segments={segments}
-                        isSelected={selectedNode === node.id}
+                        isSelected={
+                            selectedNode === node.id ||
+                            selectedNodes.includes(node.id)
+                        }
                         isConnecting={isConnecting}
                         isConnectingFrom={
                             connectingFrom && connectingFrom.nodeId === node.id
                         }
-                        onSelect={onSelectNode}
-                        onUpdatePosition={onUpdateNodePosition}
+                        onSelect={(nodeId, event) => {
+                            if (event && (event.ctrlKey || event.metaKey)) {
+                                onToggleNodeSelection(nodeId, true);
+                            } else {
+                                onSelectNode(nodeId);
+                            }
+                        }}
+                        onUpdatePosition={(nodeId, newPosition) => {
+                            onHandleGroupMovement(nodeId, newPosition, false);
+                        }}
                         onUpdateText={onUpdateNodeText}
                         onUpdateNode={onUpdateNode}
                         onDelete={onDeleteNode}

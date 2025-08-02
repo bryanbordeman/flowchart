@@ -44,6 +44,8 @@ function App() {
     const [nodes, setNodes] = useState([]);
     const [connections, setConnections] = useState([]);
     const [selectedNode, setSelectedNode] = useState(null);
+    const [selectedNodes, setSelectedNodes] = useState([]); // Multi-select nodes
+    const [selectedContainers, setSelectedContainers] = useState([]); // Multi-select containers
 
     // Container state
     const [containers, setContainers] = useState([]);
@@ -112,6 +114,121 @@ function App() {
         );
         setIsDirty(true);
     }, []);
+
+    // Update multiple node positions (for group movement)
+    const updateMultipleNodePositions = useCallback((updates) => {
+        setNodes((prev) =>
+            prev.map((node) => {
+                const update = updates.find((u) => u.id === node.id);
+                return update ? { ...node, position: update.position } : node;
+            })
+        );
+        setIsDirty(true);
+    }, []);
+
+    // Update container position
+    const updateContainerPosition = useCallback((id, newPosition) => {
+        setContainers((prev) =>
+            prev.map((container) =>
+                container.id === id
+                    ? { ...container, x: newPosition.x, y: newPosition.y }
+                    : container
+            )
+        );
+        setIsDirty(true);
+    }, []);
+
+    // Update multiple container positions (for group movement)
+    const updateMultipleContainerPositions = useCallback((updates) => {
+        setContainers((prev) =>
+            prev.map((container) => {
+                const update = updates.find((u) => u.id === container.id);
+                return update
+                    ? { ...container, x: update.x, y: update.y }
+                    : container;
+            })
+        );
+        setIsDirty(true);
+    }, []);
+
+    // Handle group movement when dragging a selected item
+    const handleGroupMovement = useCallback(
+        (draggedId, newPosition, isContainer = false) => {
+            if (isContainer) {
+                // Handle container group movement
+                if (selectedContainers.includes(draggedId)) {
+                    // Get the dragged container's current position
+                    const draggedContainer = containers.find(
+                        (c) => c.id === draggedId
+                    );
+                    if (!draggedContainer) return;
+
+                    const deltaX = newPosition.x - draggedContainer.x;
+                    const deltaY = newPosition.y - draggedContainer.y;
+
+                    // Update all selected containers
+                    const updates = selectedContainers
+                        .map((containerId) => {
+                            const container = containers.find(
+                                (c) => c.id === containerId
+                            );
+                            if (!container) return null;
+                            return {
+                                id: containerId,
+                                x: container.x + deltaX,
+                                y: container.y + deltaY,
+                            };
+                        })
+                        .filter(Boolean);
+
+                    updateMultipleContainerPositions(updates);
+                } else {
+                    // Single container movement
+                    updateContainerPosition(draggedId, newPosition);
+                }
+            } else {
+                // Handle node group movement
+                if (selectedNodes.includes(draggedId)) {
+                    // Get the dragged node's current position
+                    const draggedNode = nodes.find((n) => n.id === draggedId);
+                    if (!draggedNode) return;
+
+                    const deltaX = newPosition.x - draggedNode.position.x;
+                    const deltaY = newPosition.y - draggedNode.position.y;
+
+                    // Update all selected nodes
+                    const updates = selectedNodes
+                        .map((nodeId) => {
+                            const node = nodes.find((n) => n.id === nodeId);
+                            if (!node) return null;
+                            return {
+                                id: nodeId,
+                                position: {
+                                    x: node.position.x + deltaX,
+                                    y: node.position.y + deltaY,
+                                },
+                            };
+                        })
+                        .filter(Boolean);
+
+                    updateMultipleNodePositions(updates);
+                } else {
+                    // Single node movement
+                    updateNodePosition(draggedId, newPosition);
+                }
+            }
+        },
+        [
+            selectedNodes,
+            selectedContainers,
+            nodes,
+            containers,
+            updateNodePosition,
+            updateContainerPosition,
+            updateMultipleNodePositions,
+            updateMultipleContainerPositions,
+        ]
+    );
 
     // Update node text
     const updateNodeText = useCallback((id, newText) => {
@@ -305,6 +422,99 @@ function App() {
         setSelectedNode(null); // Deselect node when selecting container
     }, []);
 
+    // Multi-select functions
+    const toggleNodeSelection = useCallback((nodeId, isCtrlKey = false) => {
+        if (isCtrlKey) {
+            // Multi-select mode
+            setSelectedNodes((prev) => {
+                if (prev.includes(nodeId)) {
+                    // Remove from selection
+                    return prev.filter((id) => id !== nodeId);
+                } else {
+                    // Add to selection
+                    return [...prev, nodeId];
+                }
+            });
+            // Clear single selections
+            setSelectedNode(null);
+            setSelectedContainer(null);
+            setSelectedContainers([]);
+        } else {
+            // Single select mode
+            setSelectedNode(nodeId);
+            setSelectedNodes([]);
+            setSelectedContainer(null);
+            setSelectedContainers([]);
+        }
+    }, []);
+
+    const toggleContainerSelection = useCallback(
+        (containerId, isCtrlKey = false) => {
+            if (isCtrlKey) {
+                // Multi-select mode
+                setSelectedContainers((prev) => {
+                    if (prev.includes(containerId)) {
+                        // Remove from selection
+                        return prev.filter((id) => id !== containerId);
+                    } else {
+                        // Add to selection
+                        return [...prev, containerId];
+                    }
+                });
+                // Clear single selections
+                setSelectedContainer(null);
+                setSelectedNode(null);
+                setSelectedNodes([]);
+            } else {
+                // Single select mode
+                setSelectedContainer(containerId);
+                setSelectedContainers([]);
+                setSelectedNode(null);
+                setSelectedNodes([]);
+            }
+        },
+        []
+    );
+
+    const clearAllSelections = useCallback(() => {
+        setSelectedNode(null);
+        setSelectedNodes([]);
+        setSelectedContainer(null);
+        setSelectedContainers([]);
+    }, []);
+
+    // Delete multiple nodes at once
+    const deleteSelectedNodes = useCallback(() => {
+        if (selectedNodes.length > 0) {
+            setNodes((prev) =>
+                prev.filter((node) => !selectedNodes.includes(node.id))
+            );
+            // Also delete connections involving these nodes
+            setConnections((prev) =>
+                prev.filter(
+                    (conn) =>
+                        !selectedNodes.includes(conn.from) &&
+                        !selectedNodes.includes(conn.to)
+                )
+            );
+            setSelectedNodes([]);
+            setIsDirty(true);
+        }
+    }, [selectedNodes]);
+
+    // Delete multiple containers at once
+    const deleteSelectedContainers = useCallback(() => {
+        if (selectedContainers.length > 0) {
+            setContainers((prev) =>
+                prev.filter(
+                    (container) => !selectedContainers.includes(container.id)
+                )
+            );
+            setSelectedContainers([]);
+            setIsDirty(true);
+        }
+    }, [selectedContainers]);
+
     const toggleDrawingContainer = useCallback(() => {
         setIsDrawingContainer((prev) => !prev);
         if (isDrawingContainer) {
@@ -327,7 +537,9 @@ function App() {
         setConnections([]);
         setContainers([]);
         setSelectedNode(null);
+        setSelectedNodes([]);
         setSelectedContainer(null);
+        setSelectedContainers([]);
         setCurrentFile(null);
         setTitle("");
         setIsDirty(false);
@@ -385,7 +597,9 @@ function App() {
                     // Load title if it exists, otherwise empty string
                     setTitle(parsed.title || "");
                     setSelectedNode(null);
+                    setSelectedNodes([]);
                     setSelectedContainer(null);
+                    setSelectedContainers([]);
                     setIsDirty(false);
                     cancelConnection();
                 } else {
@@ -484,19 +698,39 @@ function App() {
             // Check if Delete or Backspace key is pressed
             if (e.key === "Delete" || e.key === "Backspace") {
                 // Prevent default behavior only if we have something selected
-                if (selectedNode || selectedContainer) {
+                if (
+                    selectedNode ||
+                    selectedContainer ||
+                    selectedNodes.length > 0 ||
+                    selectedContainers.length > 0
+                ) {
                     e.preventDefault();
 
-                    // Delete selected node
+                    // Delete selected single node
                     if (selectedNode) {
                         deleteNode(selectedNode);
                     }
 
-                    // Delete selected container
+                    // Delete selected single container
                     if (selectedContainer) {
                         deleteContainer(selectedContainer);
                     }
+
+                    // Delete multiple selected nodes
+                    if (selectedNodes.length > 0) {
+                        deleteSelectedNodes();
+                    }
+
+                    // Delete multiple selected containers
+                    if (selectedContainers.length > 0) {
+                        deleteSelectedContainers();
+                    }
                 }
+            }
+
+            // Handle Escape key to clear all selections
+            if (e.key === "Escape") {
+                clearAllSelections();
             }
         };
 
@@ -507,7 +741,17 @@ function App() {
         return () => {
             document.removeEventListener("keydown", handleKeyDown);
         };
-    }, [selectedNode, selectedContainer, deleteNode, deleteContainer]);
+    }, [
+        selectedNode,
+        selectedContainer,
+        selectedNodes,
+        selectedContainers,
+        deleteNode,
+        deleteContainer,
+        deleteSelectedNodes,
+        deleteSelectedContainers,
+        clearAllSelections,
+    ]);
 
     return (
         <>
@@ -537,6 +781,8 @@ function App() {
                         nodes={nodes}
                         connections={connections}
                         selectedNode={selectedNode}
+                        selectedNodes={selectedNodes}
+                        selectedContainers={selectedContainers}
                         isConnecting={isConnecting}
                         connectingFrom={connectingFrom}
                         segments={segments}
@@ -544,7 +790,11 @@ function App() {
                         selectedContainer={selectedContainer}
                         isDrawingContainer={isDrawingContainer}
                         onSelectNode={setSelectedNode}
+                        onToggleNodeSelection={toggleNodeSelection}
+                        onToggleContainerSelection={toggleContainerSelection}
+                        onClearAllSelections={clearAllSelections}
                         onUpdateNodePosition={updateNodePosition}
+                        onHandleGroupMovement={handleGroupMovement}
                         onUpdateNodeText={updateNodeText}
                         onUpdateNode={updateNode}
                         onDeleteNode={deleteNode}
@@ -620,6 +870,8 @@ function App() {
                     nodeCount={nodes.length}
                     connectionCount={connections.length}
                     selectedNode={selectedNode}
+                    selectedNodes={selectedNodes}
+                    selectedContainers={selectedContainers}
                     isDirty={isDirty}
                     isConnecting={isConnecting}
                 />
