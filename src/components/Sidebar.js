@@ -1,6 +1,6 @@
 import React from "react";
 import { Paper, Typography, Button, Box, Divider } from "@mui/material";
-import { PlayArrow, CropSquare } from "@mui/icons-material";
+import { PlayArrow, CropSquare, BorderOuter } from "@mui/icons-material";
 import SegmentManager from "./SegmentManager";
 
 import { Avatar } from "@mui/material";
@@ -65,6 +65,8 @@ const Sidebar = ({
     onAddSegment,
     onDeleteSegment,
     onUpdateSegment,
+    isDrawingContainer,
+    onToggleDrawingContainer,
 }) => {
     const handleDragStart = (e, type) => {
         e.dataTransfer.setData("nodeType", type);
@@ -175,6 +177,59 @@ const Sidebar = ({
                     </Button>
                 ))}
             </Box>
+
+            {/* Container Drawing Section */}
+            <Divider sx={{ my: 2 }} />
+            <Typography
+                variant="h6"
+                gutterBottom
+                sx={{
+                    mb: 1,
+                    pb: 1,
+                    fontSize: 16,
+                    flexShrink: 0,
+                    borderBottom: "1px solid #008093",
+                }}
+            >
+                Containers
+            </Typography>
+            <Button
+                variant={isDrawingContainer ? "contained" : "outlined"}
+                startIcon={<BorderOuter />}
+                onClick={onToggleDrawingContainer}
+                sx={{
+                    justifyContent: "flex-start",
+                    textTransform: "none",
+                    minHeight: 40,
+                    fontSize: 15,
+                    pl: 1.5,
+                    pr: 1,
+                    backgroundColor: isDrawingContainer ? "#1976d2" : "white",
+                    color: isDrawingContainer ? "white" : "#1976d2",
+                    alignItems: "center",
+                    textAlign: "left",
+                    "&:hover": {
+                        backgroundColor: isDrawingContainer
+                            ? "#1565c0"
+                            : "#e9ecef",
+                    },
+                }}
+            >
+                <Box
+                    sx={{
+                        flexGrow: 1,
+                        textAlign: "left",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                    }}
+                >
+                    {isDrawingContainer
+                        ? "Drawing Container..."
+                        : "Draw Container"}
+                </Box>
+            </Button>
+
             <Box
                 sx={{
                     flex: 1,
@@ -182,6 +237,7 @@ const Sidebar = ({
                     overflowY: "auto",
                     display: "flex",
                     flexDirection: "column",
+                    mt: 2,
                 }}
             >
                 <SegmentManager

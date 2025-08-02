@@ -4,9 +4,30 @@ import Sidebar from "./components/Sidebar";
 import Toolbar from "./components/Toolbar";
 import StatusBar from "./components/StatusBar";
 import DecisionSelector from "./components/DecisionSelector";
+import workflowLogo from "./assets/workflow_navigator_logo.svg";
 import "./App.css";
 
 function App() {
+    // Loading state
+    const [showLoadingModal, setShowLoadingModal] = useState(true);
+    const [loadingFadeOut, setLoadingFadeOut] = useState(false);
+
+    // Hide loading modal after 3 seconds with fade out
+    useEffect(() => {
+        const fadeOutTimer = setTimeout(() => {
+            setLoadingFadeOut(true);
+        }, 2500); // Start fade out at 2.5s
+
+        const hideTimer = setTimeout(() => {
+            setShowLoadingModal(false);
+        }, 3000); // Complete hide at 3s
+
+        return () => {
+            clearTimeout(fadeOutTimer);
+            clearTimeout(hideTimer);
+        };
+    }, []);
+
     // Zoom state
     const [zoom, setZoom] = useState(1);
 
@@ -23,6 +44,12 @@ function App() {
     const [nodes, setNodes] = useState([]);
     const [connections, setConnections] = useState([]);
     const [selectedNode, setSelectedNode] = useState(null);
+
+    // Container state
+    const [containers, setContainers] = useState([]);
+    const [selectedContainer, setSelectedContainer] = useState(null);
+    const [isDrawingContainer, setIsDrawingContainer] = useState(false);
+
     const [currentFile, setCurrentFile] = useState(null);
     const [title, setTitle] = useState("");
     const [isDirty, setIsDirty] = useState(false);
@@ -250,11 +277,57 @@ function App() {
         setIsDirty(true);
     }, []);
 
+    // Container handlers
+    const addContainer = useCallback((container) => {
+        setContainers((prev) => [...prev, container]);
+        setIsDirty(true);
+    }, []);
+
+    const updateContainer = useCallback((id, updates) => {
+        setContainers((prev) =>
+            prev.map((container) =>
+                container.id === id ? { ...container, ...updates } : container
+            )
+        );
+        setIsDirty(true);
+    }, []);
+
+    const deleteContainer = useCallback((id) => {
+        setContainers((prev) =>
+            prev.filter((container) => container.id !== id)
+        );
+        setSelectedContainer(null);
+        setIsDirty(true);
+    }, []);
+
+    const selectContainer = useCallback((id) => {
+        setSelectedContainer(id);
+        setSelectedNode(null); // Deselect node when selecting container
+    }, []);
+
+    const toggleDrawingContainer = useCallback(() => {
+        setIsDrawingContainer((prev) => !prev);
+        if (isDrawingContainer) {
+            // If stopping drawing mode, deselect any selected container
+            setSelectedContainer(null);
+        }
+    }, [isDrawingContainer]);
+
+    const startDrawingContainer = useCallback(() => {
+        setIsDrawingContainer(true);
+    }, []);
+
+    const stopDrawingContainer = useCallback(() => {
+        setIsDrawingContainer(false);
+    }, []);
+
     // Clear all nodes
     const clearCanvas = useCallback(() => {
         setNodes([]);
         setConnections([]);
+        setContainers([]);
         setSelectedNode(null);
+        setSelectedContainer(null);
         setCurrentFile(null);
         setTitle("");
         setIsDirty(false);
@@ -263,7 +336,11 @@ function App() {
 
     // Save file
     const saveFile = useCallback(async () => {
-        const data = JSON.stringify({ title, nodes, connections }, null, 2);
+        const data = JSON.stringify(
+            { title, nodes, connections, containers },
+            null,
+            2
+        );
 
         if (window.electronAPI) {
             const result = await window.electronAPI.saveFile(data, title);
@@ -292,7 +369,7 @@ function App() {
             URL.revokeObjectURL(url);
             setIsDirty(false);
         }
-    }, [title, nodes, connections]);
+    }, [title, nodes, connections, containers]);
 
     // Load file data
     const loadFile = useCallback(
@@ -303,9 +380,12 @@ function App() {
                     setNodes(parsed.nodes);
                     // Load connections if they exist, otherwise empty array
                     setConnections(parsed.connections || []);
+                    // Load containers if they exist, otherwise empty array
+                    setContainers(parsed.containers || []);
                     // Load title if it exists, otherwise empty string
                     setTitle(parsed.title || "");
                     setSelectedNode(null);
+                    setSelectedContainer(null);
                     setIsDirty(false);
                     cancelConnection();
                 } else {
@@ -398,6 +478,37 @@ function App() {
         }
     }, [isDirty, clearCanvas, loadFile, saveFile]);
 
+    // Handle keyboard events for deleting selected components
+    useEffect(() => {
+        const handleKeyDown = (e) => {
+            // Check if Delete or Backspace key is pressed
+            if (e.key === "Delete" || e.key === "Backspace") {
+                // Prevent default behavior only if we have something selected
+                if (selectedNode || selectedContainer) {
+                    e.preventDefault();
+
+                    // Delete selected node
+                    if (selectedNode) {
+                        deleteNode(selectedNode);
+                    }
+
+                    // Delete selected container
+                    if (selectedContainer) {
+                        deleteContainer(selectedContainer);
+                    }
+                }
+            }
+        };
+
+        // Add event listener to document
+        document.addEventListener("keydown", handleKeyDown);
+
+        // Cleanup event listener
+        return () => {
+            document.removeEventListener("keydown", handleKeyDown);
+        };
+    }, [selectedNode, selectedContainer, deleteNode, deleteContainer]);
+
     return (
         <>
             <div className="app">
@@ -418,6 +529,8 @@ function App() {
                         onAddSegment={addSegment}
                         onDeleteSegment={deleteSegment}
                         onUpdateSegment={updateSegment}
+                        isDrawingContainer={isDrawingContainer}
+                        onToggleDrawingContainer={toggleDrawingContainer}
                     />
 
                     <Canvas
@@ -427,6 +540,9 @@ function App() {
                         isConnecting={isConnecting}
                         connectingFrom={connectingFrom}
                         segments={segments}
+                        containers={containers}
+                        selectedContainer={selectedContainer}
+                        isDrawingContainer={isDrawingContainer}
                         onSelectNode={setSelectedNode}
                         onUpdateNodePosition={updateNodePosition}
                         onUpdateNodeText={updateNodeText}
@@ -437,6 +553,12 @@ function App() {
                         onCompleteConnection={completeConnection}
                         onCancelConnection={cancelConnection}
                         onDeleteConnection={deleteConnection}
+                        onAddContainer={addContainer}
+                        onUpdateContainer={updateContainer}
+                        onDeleteContainer={deleteContainer}
+                        onSelectContainer={selectContainer}
+                        onStartDrawingContainer={startDrawingContainer}
+                        onStopDrawingContainer={stopDrawingContainer}
                         zoom={zoom}
                         onZoomWheel={handleZoomWheel}
                     />
@@ -502,6 +624,58 @@ function App() {
                     isConnecting={isConnecting}
                 />
             </div>
+
+            {/* Loading Modal */}
+            {showLoadingModal && (
+                <div
+                    style={{
+                        position: "fixed",
+                        top: "50%",
+                        left: "50%",
+                        transform: "translate(-50%, -50%)",
+                        width: "600px",
+                        height: "400px",
+                        backgroundColor: "rgba(255, 255, 255, 0.9)",
+                        borderRadius: "16px",
+                        boxShadow: "0 8px 32px rgba(0, 0, 0, 0.2)",
+                        display: "flex",
+                        flexDirection: "column",
+                        justifyContent: "center",
+                        alignItems: "center",
+                        zIndex: 10000,
+                    }}
+                >
+                    {/* Logo */}
+                    <img
+                        src={workflowLogo}
+                        alt="Workflow Navigator"
+                        style={{
+                            width: "500px",
+                            height: "auto",
+                            marginBottom: "20px",
+                        }}
+                    />
+
+                    {/* Credits */}
+                    <div
+                        style={{
+                            textAlign: "center",
+                            color: "#666",
+                            fontSize: "13px",
+                            lineHeight: "1.4",
+                        }}
+                    >
+                        <div
+                            style={{ fontWeight: "bold", marginBottom: "4px" }}
+                        >
+                            Created by: Bryan Bordeman
+                        </div>
+                        <div style={{ fontSize: "11px", opacity: 0.8 }}>
+                            Version 1.0.0
+                        </div>
+                    </div>
+                </div>
+            )}
         </>
     );
 }

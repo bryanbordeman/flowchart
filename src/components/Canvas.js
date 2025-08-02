@@ -1,6 +1,7 @@
-import React, { useRef } from "react";
+import React, { useRef, useState } from "react";
 import FlowchartNode from "./FlowchartNode";
 import Connection from "./Connection";
+import Container from "./Container";
 import apLogo from "../assets/ap_logo.svg";
 
 const Canvas = ({
@@ -10,6 +11,9 @@ const Canvas = ({
     isConnecting,
     connectingFrom,
     segments,
+    containers,
+    selectedContainer,
+    isDrawingContainer,
     onSelectNode,
     onUpdateNodePosition,
     onUpdateNodeText,
@@ -20,17 +24,100 @@ const Canvas = ({
     onCompleteConnection,
     onCancelConnection,
     onDeleteConnection,
+    onAddContainer,
+    onUpdateContainer,
+    onDeleteContainer,
+    onSelectContainer,
+    onStartDrawingContainer,
+    onStopDrawingContainer,
     zoom,
     onZoomWheel,
 }) => {
     // Ref for the canvas DOM element
     const canvasRef = useRef(null);
 
+    // Container drawing state
+    const [isDrawing, setIsDrawing] = useState(false);
+    const [drawingStart, setDrawingStart] = useState(null);
+    const [currentDrawing, setCurrentDrawing] = useState(null);
+
     // Fallback for missing onZoomWheel
     const handleWheel = onZoomWheel || (() => {});
 
-    // Fallback for missing handleCanvasClick
-    const handleCanvasClick = () => {};
+    // Handle mouse down for container drawing
+    const handleMouseDown = (e) => {
+        if (e.target === canvasRef.current && isDrawingContainer) {
+            const rect = canvasRef.current.getBoundingClientRect();
+            const x = (e.clientX - rect.left) / zoom;
+            const y = (e.clientY - rect.top) / zoom;
+
+            setIsDrawing(true);
+            setDrawingStart({ x, y });
+            setCurrentDrawing({
+                x,
+                y,
+                width: 0,
+                height: 0,
+            });
+        }
+    };
+
+    // Handle mouse move for container drawing
+    const handleMouseMove = (e) => {
+        if (isDrawing && drawingStart && isDrawingContainer) {
+            const rect = canvasRef.current.getBoundingClientRect();
+            const x = (e.clientX - rect.left) / zoom;
+            const y = (e.clientY - rect.top) / zoom;
+
+            const width = Math.abs(x - drawingStart.x);
+            const height = Math.abs(y - drawingStart.y);
+            const startX = Math.min(x, drawingStart.x);
+            const startY = Math.min(y, drawingStart.y);
+
+            setCurrentDrawing({
+                x: startX,
+                y: startY,
+                width,
+                height,
+            });
+        }
+    };
+
+    // Handle mouse up for container drawing
+    const handleMouseUp = (e) => {
+        if (isDrawing && currentDrawing && isDrawingContainer) {
+            // Only create container if it has minimum size
+            if (currentDrawing.width > 50 && currentDrawing.height > 30) {
+                onAddContainer({
+                    id: Date.now().toString(),
+                    x: currentDrawing.x,
+                    y: currentDrawing.y,
+                    width: currentDrawing.width,
+                    height: currentDrawing.height,
+                    color: "#e3f2fd",
+                    borderColor: "#2196f3",
+                    title: "Container",
+                });
+                onStopDrawingContainer();
+            }
+        }
+
+        setIsDrawing(false);
+        setDrawingStart(null);
+        setCurrentDrawing(null);
+    };
+
+    // Handle canvas click to deselect when clicking empty space
+    const handleCanvasClick = (e) => {
+        // Only deselect if clicking directly on the canvas (not on nodes or containers)
+        if (e.target === canvasRef.current && !isDrawingContainer) {
+            onSelectNode(null);
+            if (onSelectContainer) onSelectContainer(null);
+            if (isConnecting) {
+                onCancelConnection();
+            }
+        }
+    };
 
     const handleDrop = (e) => {
         e.preventDefault();
@@ -65,7 +152,9 @@ const Canvas = ({
         // Only deselect if the click is NOT inside a node
         if (
             !e.target.classList.contains("flowchart-node") &&
-            !e.target.closest(".flowchart-node")
+            !e.target.closest(".flowchart-node") &&
+            !e.target.closest(".MuiIconButton-root") && // Don't deselect when clicking delete button
+            !e.target.closest(".connection-port") // Don't deselect when clicking connection ports
         ) {
             onSelectNode(null);
             if (isConnecting) {
@@ -89,26 +178,17 @@ const Canvas = ({
                 (n) => n.position.y + (n.type === "decision" ? 120 : 80)
             )
         );
-        // Add margin for scrolling, but do not allow canvas to expand left/up past origin
-        minX = Math.max(0, minX - margin);
-        minY = Math.max(0, minY - margin);
+        // Add margin for scrolling
         maxX = maxX + margin;
         maxY = maxY + margin;
     }
 
     const canvasStyle = {
         position: "relative",
-        width: maxX - minX,
-        height: maxY - minY,
+        width: Math.max(maxX, 1200),
+        height: Math.max(maxY, 800),
         minWidth: "100vw",
         minHeight: "100vh",
-        left: minX < 0 ? -minX : 0,
-        top: minY < 0 ? -minY : 0,
-        background: `
-            linear-gradient(to right, #e0e0e0 1px, transparent 1px),
-            linear-gradient(to bottom, #e0e0e0 1px, transparent 1px)
-        `,
-        backgroundSize: "20px 20px",
     };
 
     return (
@@ -120,6 +200,13 @@ const Canvas = ({
                 width: "100%",
                 height: "100%",
                 position: "relative",
+                border: isDrawingContainer ? "3px dashed #4caf50" : "none",
+                borderRadius: isDrawingContainer ? "8px" : "0",
+                boxShadow: isDrawingContainer
+                    ? "inset 0 0 20px rgba(76, 175, 80, 0.1)"
+                    : "none",
+                transition: "all 0.3s ease",
+                cursor: isDrawingContainer ? "crosshair" : "default",
             }}
             onWheel={handleWheel}
         >
@@ -133,9 +220,58 @@ const Canvas = ({
                     background: "none",
                 }}
                 onClick={handleCanvasClick}
+                onMouseDown={handleMouseDown}
+                onMouseMove={handleMouseMove}
+                onMouseUp={handleMouseUp}
                 onDrop={handleDrop}
                 onDragOver={handleDragOver}
             >
+                {/* Container drawing mode background overlay */}
+                {isDrawingContainer && (
+                    <div
+                        style={{
+                            position: "absolute",
+                            top: 0,
+                            left: 0,
+                            width: "100%",
+                            height: "100%",
+                            backgroundColor: "rgba(33, 150, 243, 0.03)",
+                            pointerEvents: "none",
+                            zIndex: 0,
+                        }}
+                    />
+                )}
+
+                {/* Render containers first (behind nodes) */}
+                {containers.map((container) => (
+                    <Container
+                        key={container.id}
+                        container={container}
+                        isSelected={selectedContainer === container.id}
+                        onSelect={onSelectContainer}
+                        onUpdate={onUpdateContainer}
+                        onDelete={onDeleteContainer}
+                        zoom={zoom}
+                    />
+                ))}
+
+                {/* Drawing preview rectangle */}
+                {currentDrawing && isDrawing && (
+                    <div
+                        style={{
+                            position: "absolute",
+                            left: currentDrawing.x,
+                            top: currentDrawing.y,
+                            width: currentDrawing.width,
+                            height: currentDrawing.height,
+                            border: "2px dashed #2196f3",
+                            backgroundColor: "rgba(33, 150, 243, 0.1)",
+                            pointerEvents: "none",
+                            zIndex: 10,
+                        }}
+                    />
+                )}
+
                 {/* SVG overlay for connections */}
                 <svg
                     className="connections-layer"
@@ -145,8 +281,8 @@ const Canvas = ({
                         left: 0,
                         width: "100%",
                         height: "100%",
-                        pointerEvents: "auto",
-                        zIndex: 5,
+                        pointerEvents: "none", // Make SVG transparent to clicks
+                        zIndex: 15, // Higher than containers but pointer events disabled
                     }}
                 >
                     {/* Arrow marker definition */}
@@ -312,6 +448,7 @@ const Canvas = ({
                             );
                         })}
                 </svg>
+
                 {/* Watermark logo */}
                 <div
                     style={{
