@@ -448,7 +448,7 @@ const FlowchartNode = ({
     };
 
     const getFileIcon = (fileType) => {
-        console.log("Main getFileIcon called with fileType:", fileType); // Debug log
+        // console.log("Main getFileIcon called with fileType:", fileType); // Debug log
         switch (fileType) {
             case "pdf":
                 return (

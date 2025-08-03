@@ -70,22 +70,122 @@ function App() {
         { id: "shop", name: "Shop", color: "#FFCDD2" },
     ]);
 
+    // Undo/Redo state management
+    const [history, setHistory] = useState([]);
+    const [historyIndex, setHistoryIndex] = useState(-1);
+    const maxHistorySize = 50; // Limit history size for memory management
+
+    // Save initial state to history
+    useEffect(() => {
+        if (history.length === 0) {
+            const initialState = {
+                nodes: [],
+                connections: [],
+                containers: [],
+                segments: segments,
+                title: "",
+                timestamp: Date.now(),
+            };
+            setHistory([initialState]);
+            setHistoryIndex(0);
+        }
+    }, []); // Only run once on mount
+
     // Generate unique ID for nodes
     const generateId = () => Date.now().toString();
 
-    // Add a new node to the canvas
-    const addNode = useCallback((type, position) => {
-        const newNode = {
-            id: generateId(),
-            type: type,
-            position: position,
-            text: getDefaultText(type),
-            segment: "default", // Default segment for new nodes
-            documents: [], // Multiple document attachments
+    // Save current state to history for undo functionality
+    const saveToHistory = useCallback(() => {
+        const currentState = {
+            nodes: [...nodes],
+            connections: [...connections],
+            containers: [...containers],
+            segments: [...segments],
+            title: title,
+            timestamp: Date.now(),
         };
-        setNodes((prev) => [...prev, newNode]);
-        setIsDirty(true);
-    }, []);
+
+        setHistory((prev) => {
+            // Remove any states after current index (for when we've undone some actions)
+            const newHistory = prev.slice(0, historyIndex + 1);
+            // Add new state
+            newHistory.push(currentState);
+            // Limit history size
+            if (newHistory.length > maxHistorySize) {
+                newHistory.shift();
+                return newHistory;
+            }
+            return newHistory;
+        });
+
+        setHistoryIndex((prev) => {
+            const newIndex = Math.min(prev + 1, maxHistorySize - 1);
+            return newIndex;
+        });
+    }, [
+        nodes,
+        connections,
+        containers,
+        segments,
+        title,
+        historyIndex,
+        maxHistorySize,
+    ]);
+
+    // Restore state from history
+    const restoreFromHistory = useCallback(
+        (stateIndex) => {
+            if (stateIndex >= 0 && stateIndex < history.length) {
+                const state = history[stateIndex];
+                setNodes(state.nodes);
+                setConnections(state.connections);
+                setContainers(state.containers);
+                setSegments(state.segments);
+                setTitle(state.title);
+                setHistoryIndex(stateIndex);
+                setIsDirty(true);
+
+                // Clear selections when undoing/redoing
+                setSelectedNode(null);
+                setSelectedNodes([]);
+                setSelectedContainer(null);
+                setSelectedContainers([]);
+            }
+        },
+        [history]
+    );
+
+    // Undo function
+    const undo = useCallback(() => {
+        if (historyIndex > 0) {
+            restoreFromHistory(historyIndex - 1);
+        }
+    }, [historyIndex, restoreFromHistory]);
+
+    // Redo function
+    const redo = useCallback(() => {
+        if (historyIndex < history.length - 1) {
+            restoreFromHistory(historyIndex + 1);
+        }
+    }, [historyIndex, history.length, restoreFromHistory]);
+
+    // Add a new node to the canvas
+    const addNode = useCallback(
+        (type, position) => {
+            saveToHistory(); // Save state before making changes
+            const newNode = {
+                id: generateId(),
+                type: type,
+                position: position,
+                text: getDefaultText(type),
+                segment: "default", // Default segment for new nodes
+                documents: [], // Multiple document attachments
+            };
+            setNodes((prev) => [...prev, newNode]);
+            setIsDirty(true);
+        },
+        [saveToHistory]
+    );
 
     // Get default text for node types
     const getDefaultText = (type) => {
@@ -106,37 +206,51 @@ function App() {
     };
 
     // Update node position
-    const updateNodePosition = useCallback((id, newPosition) => {
-        setNodes((prev) =>
-            prev.map((node) =>
-                node.id === id ? { ...node, position: newPosition } : node
-            )
-        );
-        setIsDirty(true);
-    }, []);
+    const updateNodePosition = useCallback(
+        (id, newPosition) => {
+            saveToHistory(); // Save state before making changes
+            setNodes((prev) =>
+                prev.map((node) =>
+                    node.id === id ? { ...node, position: newPosition } : node
+                )
+            );
+            setIsDirty(true);
+        },
+        [saveToHistory]
+    );
 
     // Update multiple node positions (for group movement)
-    const updateMultipleNodePositions = useCallback((updates) => {
-        setNodes((prev) =>
-            prev.map((node) => {
-                const update = updates.find((u) => u.id === node.id);
-                return update ? { ...node, position: update.position } : node;
-            })
-        );
-        setIsDirty(true);
-    }, []);
+    const updateMultipleNodePositions = useCallback(
+        (updates) => {
+            saveToHistory(); // Save state before making changes
+            setNodes((prev) =>
+                prev.map((node) => {
+                    const update = updates.find((u) => u.id === node.id);
+                    return update
+                        ? { ...node, position: update.position }
+                        : node;
+                })
+            );
+            setIsDirty(true);
+        },
+        [saveToHistory]
+    );
 
     // Update container position
-    const updateContainerPosition = useCallback((id, newPosition) => {
-        setContainers((prev) =>
-            prev.map((container) =>
-                container.id === id
-                    ? { ...container, x: newPosition.x, y: newPosition.y }
-                    : container
-            )
-        );
-        setIsDirty(true);
-    }, []);
+    const updateContainerPosition = useCallback(
+        (id, newPosition) => {
+            saveToHistory(); // Save state before making changes
+            setContainers((prev) =>
+                prev.map((container) =>
+                    container.id === id
+                        ? { ...container, x: newPosition.x, y: newPosition.y }
+                        : container
+                )
+            );
+            setIsDirty(true);
+        },
+        [saveToHistory]
+    );
 
     // Update multiple container positions (for group movement)
     const updateMultipleContainerPositions = useCallback((updates) => {
@@ -231,24 +345,32 @@ function App() {
     );
 
     // Update node text
-    const updateNodeText = useCallback((id, newText) => {
-        setNodes((prev) =>
-            prev.map((node) =>
-                node.id === id ? { ...node, text: newText } : node
-            )
-        );
-        setIsDirty(true);
-    }, []);
+    const updateNodeText = useCallback(
+        (id, newText) => {
+            saveToHistory(); // Save state before text changes
+            setNodes((prev) =>
+                prev.map((node) =>
+                    node.id === id ? { ...node, text: newText } : node
+                )
+            );
+            setIsDirty(true);
+        },
+        [saveToHistory]
+    );
 
     // Update node properties (text, color, etc.)
-    const updateNode = useCallback((id, updates) => {
-        setNodes((prev) =>
-            prev.map((node) =>
-                node.id === id ? { ...node, ...updates } : node
-            )
-        );
-        setIsDirty(true);
-    }, []);
+    const updateNode = useCallback(
+        (id, updates) => {
+            saveToHistory(); // Save state before property changes
+            setNodes((prev) =>
+                prev.map((node) =>
+                    node.id === id ? { ...node, ...updates } : node
+                )
+            );
+            setIsDirty(true);
+        },
+        [saveToHistory]
+    );
 
     // Update title
     const updateTitle = useCallback((newTitle) => {
@@ -259,6 +381,7 @@ function App() {
     // Delete a node
     const deleteNode = useCallback(
         (id) => {
+            saveToHistory(); // Save state before making changes
             setNodes((prev) => prev.filter((node) => node.id !== id));
             // Also delete connections involving this node
             setConnections((prev) =>
@@ -269,7 +392,7 @@ function App() {
             }
             setIsDirty(true);
         },
-        [selectedNode]
+        [selectedNode, saveToHistory]
     );
 
     // Segment management functions
@@ -336,6 +459,7 @@ function App() {
                     setShowDecisionSelector(true);
                 } else {
                     // Create regular connection
+                    saveToHistory(); // Save state before making changes
                     const newConnection = {
                         id: generateId(),
                         from: connectingFrom.nodeId,
@@ -350,13 +474,14 @@ function App() {
             setIsConnecting(false);
             setConnectingFrom(null);
         },
-        [isConnecting, connectingFrom, nodes]
+        [isConnecting, connectingFrom, nodes, saveToHistory]
     );
 
     // Complete decision connection with Yes/No choice
     const completeDecisionConnection = useCallback(
         (decisionType) => {
             if (pendingConnection) {
+                saveToHistory(); // Save state before making changes
                 const newConnection = {
                     id: generateId(),
                     from: pendingConnection.from,
@@ -371,7 +496,7 @@ function App() {
             setShowDecisionSelector(false);
             setPendingConnection(null);
         },
-        [pendingConnection]
+        [pendingConnection, saveToHistory]
     );
 
     // Cancel decision connection
@@ -387,35 +512,57 @@ function App() {
     }, []);
 
     // Delete a connection
-    const deleteConnection = useCallback((connectionId) => {
-        setConnections((prev) =>
-            prev.filter((conn) => conn.id !== connectionId)
-        );
-        setIsDirty(true);
-    }, []);
+    const deleteConnection = useCallback(
+        (connectionId) => {
+            saveToHistory(); // Save state before deleting connection
+            setConnections((prev) =>
+                prev.filter((conn) => conn.id !== connectionId)
+            );
+            setIsDirty(true);
+        },
+        [saveToHistory]
+    );
 
     // Container handlers
-    const addContainer = useCallback((container) => {
-        setContainers((prev) => [...prev, container]);
-        setIsDirty(true);
-    }, []);
+    const addContainer = useCallback(
+        (container) => {
+            saveToHistory(); // Save state before adding container
+            setContainers((prev) => [...prev, container]);
+            setIsDirty(true);
+        },
+        [saveToHistory]
+    );
 
-    const updateContainer = useCallback((id, updates) => {
-        setContainers((prev) =>
-            prev.map((container) =>
-                container.id === id ? { ...container, ...updates } : container
-            )
-        );
-        setIsDirty(true);
-    }, []);
+    const updateContainer = useCallback(
+        (id, updates) => {
+            // Don't save to history for every position update to avoid too many entries
+            // Only save for significant changes (not just position)
+            if (!updates.hasOwnProperty("x") && !updates.hasOwnProperty("y")) {
+                saveToHistory();
+            }
+            setContainers((prev) =>
+                prev.map((container) =>
+                    container.id === id
+                        ? { ...container, ...updates }
+                        : container
+                )
+            );
+            setIsDirty(true);
+        },
+        [saveToHistory]
+    );
 
-    const deleteContainer = useCallback((id) => {
-        setContainers((prev) =>
-            prev.filter((container) => container.id !== id)
-        );
-        setSelectedContainer(null);
-        setIsDirty(true);
-    }, []);
+    const deleteContainer = useCallback(
+        (id) => {
+            saveToHistory(); // Save state before deleting container
+            setContainers((prev) =>
+                prev.filter((container) => container.id !== id)
+            );
+            setSelectedContainer(null);
+            setIsDirty(true);
+        },
+        [saveToHistory]
+    );
 
     const selectContainer = useCallback((id) => {
         setSelectedContainer(id);
@@ -486,6 +633,7 @@ function App() {
     // Delete multiple nodes at once
     const deleteSelectedNodes = useCallback(() => {
         if (selectedNodes.length > 0) {
+            saveToHistory(); // Save state before deleting nodes
             setNodes((prev) =>
                 prev.filter((node) => !selectedNodes.includes(node.id))
             );
@@ -500,11 +648,12 @@ function App() {
             setSelectedNodes([]);
             setIsDirty(true);
         }
-    }, [selectedNodes]);
+    }, [selectedNodes, saveToHistory]);
 
     // Delete multiple containers at once
     const deleteSelectedContainers = useCallback(() => {
         if (selectedContainers.length > 0) {
+            saveToHistory(); // Save state before deleting containers
             setContainers((prev) =>
                 prev.filter(
                     (container) => !selectedContainers.includes(container.id)
@@ -513,7 +662,7 @@ function App() {
             setSelectedContainers([]);
             setIsDirty(true);
         }
-    }, [selectedContainers]);
+    }, [selectedContainers, saveToHistory]);
 
     const toggleDrawingContainer = useCallback(() => {
         setIsDrawingContainer((prev) => !prev);
@@ -543,6 +692,9 @@ function App() {
         setCurrentFile(null);
         setTitle("");
         setIsDirty(false);
+        // Clear history when starting new
+        setHistory([]);
+        setHistoryIndex(-1);
         cancelConnection();
     }, [cancelConnection]);
 
@@ -601,6 +753,9 @@ function App() {
                     setSelectedContainer(null);
                     setSelectedContainers([]);
                     setIsDirty(false);
+                    // Clear history when loading new file
+                    setHistory([]);
+                    setHistoryIndex(-1);
                     cancelConnection();
                 } else {
                     alert("Invalid file format");
@@ -695,6 +850,27 @@ function App() {
     // Handle keyboard events for deleting selected components
     useEffect(() => {
         const handleKeyDown = (e) => {
+            // Handle Ctrl+Z / Cmd+Z for undo
+            if ((e.ctrlKey || e.metaKey) && e.key === "z" && !e.shiftKey) {
+                e.preventDefault();
+                undo();
+                return;
+            }
+
+            // Handle Ctrl+Shift+Z / Cmd+Shift+Z for redo
+            if ((e.ctrlKey || e.metaKey) && e.key === "z" && e.shiftKey) {
+                e.preventDefault();
+                redo();
+                return;
+            }
+
+            // Handle Ctrl+Y / Cmd+Y for redo (alternative)
+            if ((e.ctrlKey || e.metaKey) && e.key === "y") {
+                e.preventDefault();
+                redo();
+                return;
+            }
+
             // Check if Delete or Backspace key is pressed
             if (e.key === "Delete" || e.key === "Backspace") {
                 // Prevent default behavior only if we have something selected
@@ -751,11 +927,13 @@ function App() {
         deleteSelectedNodes,
         deleteSelectedContainers,
         clearAllSelections,
+        undo,
+        redo,
     ]);
 
     return (
         <>
-            <div className="app">
+            <div className={`app ${showLoadingModal ? "app-loading" : ""}`}>
                 <Toolbar
                     onNew={clearCanvas}
                     onLoad={loadFileDialog}
@@ -764,6 +942,10 @@ function App() {
                     onTitleChange={updateTitle}
                     isDirty={isDirty}
                     currentFile={currentFile}
+                    onUndo={undo}
+                    onRedo={redo}
+                    canUndo={historyIndex > 0}
+                    canRedo={historyIndex < history.length - 1}
                 />
 
                 <div className="main-content" style={{ position: "relative" }}>
@@ -837,51 +1019,58 @@ function App() {
             {/* Loading Modal */}
             {showLoadingModal && (
                 <div
+                    className="loading-overlay"
                     style={{
-                        position: "fixed",
-                        top: "50%",
-                        left: "50%",
-                        transform: "translate(-50%, -50%)",
-                        width: "600px",
-                        height: "400px",
-                        backgroundColor: "rgba(255, 255, 255, 0.9)",
-                        borderRadius: "16px",
-                        boxShadow: "0 8px 32px rgba(0, 0, 0, 0.2)",
-                        display: "flex",
-                        flexDirection: "column",
-                        justifyContent: "center",
-                        alignItems: "center",
-                        zIndex: 10000,
-                        border: "2px solid #008093",
+                        opacity: loadingFadeOut ? 0 : 1,
+                        transition: "opacity 0.5s ease-out",
                     }}
                 >
-                    {/* Logo */}
-                    <img
-                        src={workflowLogo}
-                        alt="Workflow Navigator"
-                        style={{
-                            width: "500px",
-                            height: "auto",
-                            marginBottom: "20px",
-                        }}
-                    />
-
-                    {/* Credits */}
                     <div
+                        className="loading-content"
                         style={{
-                            textAlign: "center",
-                            color: "#666",
-                            fontSize: "13px",
-                            lineHeight: "1.4",
+                            width: "600px",
+                            height: "400px",
+                            backgroundColor: "rgba(255, 255, 255, 0.95)",
+                            borderRadius: "16px",
+                            boxShadow: "0 8px 32px rgba(0, 0, 0, 0.3)",
+                            display: "flex",
+                            flexDirection: "column",
+                            justifyContent: "center",
+                            alignItems: "center",
+                            border: "2px solid #008093",
                         }}
                     >
+                        {/* Logo */}
+                        <img
+                            src={workflowLogo}
+                            alt="Workflow Navigator"
+                            style={{
+                                width: "500px",
+                                height: "auto",
+                                marginBottom: "20px",
+                            }}
+                        />
+
+                        {/* Credits */}
                         <div
-                            style={{ fontWeight: "bold", marginBottom: "4px" }}
+                            style={{
+                                textAlign: "center",
+                                color: "#666",
+                                fontSize: "13px",
+                                lineHeight: "1.4",
+                            }}
                         >
-                            Created by: Bryan Bordeman
-                        </div>
-                        <div style={{ fontSize: "11px", opacity: 0.8 }}>
-                            Version 1.0.0
+                            <div
+                                style={{
+                                    fontWeight: "bold",
+                                    marginBottom: "4px",
+                                }}
+                            >
+                                Created by: Bryan Bordeman
+                            </div>
+                            <div style={{ fontSize: "11px", opacity: 0.8 }}>
+                                Version 1.0.0
+                            </div>
                         </div>
                     </div>
                 </div>

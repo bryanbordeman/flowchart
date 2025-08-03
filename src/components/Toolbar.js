@@ -6,8 +6,10 @@ import {
     Typography,
     Toolbar as MuiToolbar,
     AppBar,
+    IconButton,
+    Tooltip,
 } from "@mui/material";
-import { Description, FolderOpen, Save } from "@mui/icons-material";
+import { Description, FolderOpen, Save, Undo, Redo } from "@mui/icons-material";
 import logo from "../assets/workflow_navigator_logo.svg";
 
 const Toolbar = ({
@@ -18,6 +20,10 @@ const Toolbar = ({
     currentFile,
     title,
     onTitleChange,
+    onUndo,
+    onRedo,
+    canUndo,
+    canRedo,
 }) => {
     const [isEditingTitle, setIsEditingTitle] = useState(false);
     const [editTitle, setEditTitle] = useState(title || "Untitled");
@@ -103,6 +109,38 @@ const Toolbar = ({
                 >
                     Save{isDirty ? " *" : ""}
                 </Button>
+
+                {/* Undo Button */}
+                <Tooltip title={canUndo ? "Undo (Ctrl+Z)" : "Nothing to undo"}>
+                    <span>
+                        <IconButton
+                            onClick={onUndo}
+                            disabled={!canUndo}
+                            size="small"
+                            sx={{
+                                color: canUndo ? "primary.main" : "disabled",
+                            }}
+                        >
+                            <Undo />
+                        </IconButton>
+                    </span>
+                </Tooltip>
+
+                {/* Redo Button */}
+                <Tooltip title={canRedo ? "Redo (Ctrl+Y)" : "Nothing to redo"}>
+                    <span>
+                        <IconButton
+                            onClick={onRedo}
+                            disabled={!canRedo}
+                            size="small"
+                            sx={{
+                                color: canRedo ? "primary.main" : "disabled",
+                            }}
+                        >
+                            <Redo />
+                        </IconButton>
+                    </span>
+                </Tooltip>
 
                 <Box
                     sx={{
