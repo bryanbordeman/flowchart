@@ -873,7 +873,18 @@ function App() {
 
             // Check if Delete or Backspace key is pressed
             if (e.key === "Delete" || e.key === "Backspace") {
-                // Prevent default behavior only if we have something selected
+                // Check if we're currently editing text in a node (focus is on textarea)
+                const isEditingText =
+                    document.activeElement &&
+                    (document.activeElement.tagName === "TEXTAREA" ||
+                        document.activeElement.tagName === "INPUT");
+
+                // If we're editing text, let the default behavior handle text deletion
+                if (isEditingText) {
+                    return; // Don't prevent default, allow normal text deletion
+                }
+
+                // Prevent default behavior only if we have something selected and not editing text
                 if (
                     selectedNode ||
                     selectedContainer ||

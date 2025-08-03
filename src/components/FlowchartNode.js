@@ -80,14 +80,22 @@ const FlowchartNode = ({
 
     const handleDoubleClick = () => {
         if (node.type !== "connector") {
-            setIsEditing(true);
-            setEditText(node.text);
-            setTimeout(() => {
+            if (isEditing) {
+                // If already editing, select all text on double-click
                 if (inputRef.current) {
-                    inputRef.current.focus();
-                    inputRef.current.select(); // Select all text when editing starts
+                    inputRef.current.select();
                 }
-            }, 0);
+            } else {
+                // Enter edit mode
+                setIsEditing(true);
+                setEditText(node.text);
+                setTimeout(() => {
+                    if (inputRef.current) {
+                        inputRef.current.focus();
+                        inputRef.current.select(); // Select all text when editing starts
+                    }
+                }, 0);
+            }
         }
     };
 
@@ -122,6 +130,12 @@ const FlowchartNode = ({
 
     const handleClick = (e) => {
         e.stopPropagation();
+        // Don't handle node selection if we're in editing mode
+        // This allows text selection to work properly
+        if (isEditing) {
+            return;
+        }
+
         if (isConnecting && !isConnectingFrom) {
             // Complete connection to this node
             onCompleteConnection(node.id);
@@ -536,6 +550,7 @@ const FlowchartNode = ({
         if (isConnectingFrom) className += " connecting-from";
         if (isConnecting && !isConnectingFrom)
             className += " connection-target";
+        if (isEditing) className += " editing"; // Add editing class for different styling
         return className;
     };
 
@@ -808,6 +823,7 @@ const FlowchartNode = ({
                                 onChange={(e) => setEditText(e.target.value)}
                                 onBlur={handleTextSubmit}
                                 onKeyDown={handleKeyPress}
+                                onMouseDown={(e) => e.stopPropagation()} // Prevent drag behavior when selecting text
                                 style={{
                                     border: "none",
                                     background: "transparent",
@@ -820,11 +836,28 @@ const FlowchartNode = ({
                                     outline: "none",
                                     overflow: "hidden",
                                     padding:
-                                        "2px" /* Reduced padding to match text area */,
+                                        node.type === "decision"
+                                            ? "8px"
+                                            : "2px", // More padding for decision nodes
                                     boxSizing: "border-box",
                                     wordBreak: "break-all",
                                     wordWrap: "break-word",
                                     overflowWrap: "anywhere",
+                                    userSelect: "text", // Ensure text selection is enabled
+                                    WebkitUserSelect: "text", // Safari support
+                                    MozUserSelect: "text", // Firefox support
+                                    // Special centering for decision nodes
+                                    ...(node.type === "decision" && {
+                                        position: "absolute",
+                                        top: "50%",
+                                        left: "50%",
+                                        transform: "translate(-50%, -50%)",
+                                        width: "80%", // Slightly smaller to fit within diamond
+                                        height: "60%", // Slightly smaller to fit within diamond
+                                        zIndex: 16,
+                                        lineHeight: "1.2",
+                                        verticalAlign: "middle",
+                                    }),
                                 }}
                                 placeholder="Enter text (Ctrl+Enter to save, Esc to cancel)"
                             />
@@ -844,6 +877,12 @@ const FlowchartNode = ({
                                     hyphens: "auto",
                                     textAlign: "center",
                                     whiteSpace: "pre-wrap", // Preserve line breaks and spaces
+                                    position:
+                                        node.type === "decision"
+                                            ? "relative"
+                                            : "static",
+                                    zIndex:
+                                        node.type === "decision" ? 2 : "auto", // Ensure text is above diamond shape
                                 }}
                             >
                                 {node.text}
