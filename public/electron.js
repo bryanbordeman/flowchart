@@ -303,6 +303,11 @@ ipcMain.handle("attach-document", async (event) => {
                         "gif",
                         "bmp",
                         "svg",
+                        "dwg",
+                        "dxf",
+                        "sldprt",
+                        "sldasm",
+                        "slddrw",
                     ],
                 },
                 { name: "PDF Documents", extensions: ["pdf"] },
@@ -311,6 +316,11 @@ ipcMain.handle("attach-document", async (event) => {
                 {
                     name: "Images",
                     extensions: ["png", "jpg", "jpeg", "gif", "bmp", "svg"],
+                },
+                { name: "AutoCAD Files", extensions: ["dwg", "dxf"] },
+                {
+                    name: "SolidWorks Files",
+                    extensions: ["sldprt", "sldasm", "slddrw"],
                 },
                 { name: "All Files", extensions: ["*"] },
             ],
@@ -364,6 +374,16 @@ ipcMain.handle("attach-document", async (event) => {
                         fileType = "image";
                         mimeType = `image/${fileExtension.slice(1)}`;
                         if (fileExtension === ".jpg") mimeType = "image/jpeg";
+                    } else if ([".dwg", ".dxf"].includes(fileExtension)) {
+                        fileType = "autocad";
+                        mimeType = "application/octet-stream";
+                    } else if (
+                        [".sldprt", ".sldasm", ".slddrw"].includes(
+                            fileExtension
+                        )
+                    ) {
+                        fileType = "solidworks";
+                        mimeType = "application/octet-stream";
                     }
 
                     attachedDocuments.push({
@@ -448,6 +468,68 @@ ipcMain.handle("open-document", async (event, documentData) => {
         return { success: true };
     } catch (error) {
         console.error("Document open error:", error);
+        return { success: false, error: error.message };
+    }
+});
+
+// Handle folder attachment requests
+ipcMain.handle("attach-folder", async (event) => {
+    console.log("Electron: Starting folder attachment dialog...");
+    try {
+        const result = await dialog.showOpenDialog(mainWindow, {
+            properties: ["openDirectory"],
+            title: "Select Folder to Link",
+        });
+
+        console.log("Folder dialog result:", result);
+
+        if (!result.canceled && result.filePaths.length > 0) {
+            const folderPath = result.filePaths[0];
+            const folderName = path.basename(folderPath);
+
+            const folder = {
+                id:
+                    Date.now().toString() +
+                    "_" +
+                    Math.random().toString(36).substr(2, 9),
+                name: folderName,
+                path: folderPath,
+                linkedAt: new Date().toISOString(),
+            };
+
+            console.log("Successfully selected folder:", folder);
+            return {
+                success: true,
+                folder: folder,
+            };
+        } else {
+            console.log("Folder selection canceled");
+            return { success: false, error: "Folder selection canceled" };
+        }
+    } catch (error) {
+        console.error("Folder dialog error:", error);
+        return { success: false, error: "Failed to open folder dialog" };
+    }
+});
+
+// Handle folder opening requests
+ipcMain.handle("open-folder", async (event, folderData) => {
+    console.log("Electron: Opening folder:", folderData);
+    try {
+        if (!folderData || !folderData.path) {
+            throw new Error("Invalid folder data");
+        }
+
+        // Check if folder exists
+        if (!fs.existsSync(folderData.path)) {
+            throw new Error("Folder no longer exists at: " + folderData.path);
+        }
+
+        // Open folder in file explorer
+        await shell.openPath(folderData.path);
+        return { success: true };
+    } catch (error) {
+        console.error("Folder open error:", error);
         return { success: false, error: error.message };
     }
 });

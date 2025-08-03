@@ -10,6 +10,8 @@ const validChannels = [
     "menu-save-as-file",
     "attach-document",
     "open-document",
+    "attach-folder",
+    "open-folder",
 ];
 
 contextBridge.exposeInMainWorld("electronAPI", {
@@ -57,5 +59,11 @@ contextBridge.exposeInMainWorld("electronAPI", {
     },
     openDocument: (filePath) => {
         return ipcRenderer.invoke("open-document", filePath);
+    },
+    attachFolder: () => {
+        return ipcRenderer.invoke("attach-folder");
+    },
+    openFolder: (folderData) => {
+        return ipcRenderer.invoke("open-folder", folderData);
     },
 });

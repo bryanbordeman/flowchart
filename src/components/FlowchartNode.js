@@ -35,6 +35,11 @@ import {
     InsertDriveFile,
     ExpandMore,
     Add,
+    Architecture,
+    Engineering,
+    Folder,
+    FolderOpen,
+    Link,
 } from "@mui/icons-material";
 
 const FlowchartNode = ({
@@ -55,6 +60,7 @@ const FlowchartNode = ({
     const [editText, setEditText] = useState("");
     const [showEditModal, setShowEditModal] = useState(false);
     const [documentMenuAnchor, setDocumentMenuAnchor] = useState(null);
+    const [folderMenuAnchor, setFolderMenuAnchor] = useState(null);
     const inputRef = useRef(null);
     const nodeRef = useRef(null);
 
@@ -135,12 +141,19 @@ const FlowchartNode = ({
         setShowEditModal(true);
     };
 
-    const handleSaveEdit = (newText, newSegment, newDocument, newDocuments) => {
+    const handleSaveEdit = (
+        newText,
+        newSegment,
+        newDocument,
+        newDocuments,
+        newFolderLinks
+    ) => {
         onUpdateNode(node.id, {
             text: newText,
             segment: newSegment,
             document: newDocument, // Keep for backward compatibility
             documents: newDocuments || [], // New multi-document support
+            folderLinks: newFolderLinks || [], // New folder links support
         });
         setShowEditModal(false);
     };
@@ -205,6 +218,56 @@ const FlowchartNode = ({
         }
     };
 
+    // Folder link handlers
+    const handleFolderClick = async (e) => {
+        e.stopPropagation();
+
+        const allFolders = [...(node.folderLinks || [])];
+
+        if (allFolders.length === 0) return;
+
+        if (allFolders.length === 1) {
+            // Single folder - open directly
+            try {
+                const result = await window.electronAPI.openFolder(
+                    allFolders[0]
+                );
+                if (!result.success) {
+                    alert(
+                        "Failed to open folder: " +
+                            (result.error || "Unknown error")
+                    );
+                }
+            } catch (error) {
+                console.error("Error opening folder:", error);
+                alert("Failed to open folder");
+            }
+        } else {
+            // Multiple folders - show dropdown menu
+            setFolderMenuAnchor(e.currentTarget);
+        }
+    };
+
+    const handleFolderMenuClose = () => {
+        setFolderMenuAnchor(null);
+    };
+
+    const handleFolderMenuItemClick = async (folder) => {
+        setFolderMenuAnchor(null);
+        try {
+            const result = await window.electronAPI.openFolder(folder);
+            if (!result.success) {
+                alert(
+                    "Failed to open folder: " +
+                        (result.error || "Unknown error")
+                );
+            }
+        } catch (error) {
+            console.error("Error opening folder:", error);
+            alert("Failed to open folder");
+        }
+    };
+
     const getFileIcon = (fileType) => {
         switch (fileType) {
             case "pdf":
@@ -215,6 +278,10 @@ const FlowchartNode = ({
                 return <TableChart color="success" />;
             case "image":
                 return <Image color="info" />;
+            case "autocad":
+                return <Architecture style={{ color: "#ff6b35" }} />;
+            case "solidworks":
+                return <Engineering style={{ color: "#005cb9" }} />;
             default:
                 return <InsertDriveFile color="action" />;
         }
@@ -422,6 +489,60 @@ const FlowchartNode = ({
                             </>
                         )}
 
+                        {/* Folder links indicator - show if there are any folder links */}
+                        {node.folderLinks && node.folderLinks.length > 0 && (
+                            <>
+                                <IconButton
+                                    size="small"
+                                    onClick={handleFolderClick}
+                                    title={
+                                        node.folderLinks.length > 1
+                                            ? `${node.folderLinks.length} folders linked`
+                                            : `Click to open: ${node.folderLinks[0]?.name}`
+                                    }
+                                    sx={{
+                                        position: "absolute",
+                                        bottom: -6,
+                                        left:
+                                            (node.documents &&
+                                                node.documents.length > 0) ||
+                                            node.document
+                                                ? 16
+                                                : -6,
+                                        width: 20,
+                                        height: 20,
+                                        backgroundColor: "white",
+                                        border: "1px solid #ddd",
+                                        "&:hover": {
+                                            backgroundColor: "#e3f2fd",
+                                            borderColor: "#2196f3",
+                                        },
+                                    }}
+                                >
+                                    <Folder
+                                        sx={{ fontSize: 14 }}
+                                        color="primary"
+                                    />
+                                    {/* Show multiple folders indicator */}
+                                    {node.folderLinks.length > 1 && (
+                                        <ExpandMore
+                                            sx={{
+                                                fontSize: 8,
+                                                position: "absolute",
+                                                bottom: -2,
+                                                right: -2,
+                                                backgroundColor: "primary.main",
+                                                color: "white",
+                                                borderRadius: "50%",
+                                                width: 10,
+                                                height: 10,
+                                            }}
+                                        />
+                                    )}
+                                </IconButton>
+                            </>
+                        )}
+
                         {/* Document selection menu */}
                         <Menu
                             anchorEl={documentMenuAnchor}
@@ -510,6 +631,51 @@ const FlowchartNode = ({
                                 )}
                         </Menu>
 
+                        {/* Folder selection menu */}
+                        <Menu
+                            anchorEl={folderMenuAnchor}
+                            open={Boolean(folderMenuAnchor)}
+                            onClose={handleFolderMenuClose}
+                            PaperProps={{
+                                sx: { maxWidth: 300, maxHeight: 300 },
+                            }}
+                        >
+                            {node.folderLinks &&
+                                node.folderLinks.map((folder, index) => (
+                                    <MenuItem
+                                        key={folder.id}
+                                        onClick={() =>
+                                            handleFolderMenuItemClick(folder)
+                                        }
+                                        sx={{ py: 1 }}
+                                    >
+                                        <ListItemIcon sx={{ minWidth: 36 }}>
+                                            <Folder color="primary" />
+                                        </ListItemIcon>
+                                        <ListItemText
+                                            primary={folder.name}
+                                            secondary={folder.path}
+                                            sx={{
+                                                "& .MuiListItemText-primary": {
+                                                    fontSize: "0.875rem",
+                                                    overflow: "hidden",
+                                                    textOverflow: "ellipsis",
+                                                    whiteSpace: "nowrap",
+                                                },
+                                                "& .MuiListItemText-secondary":
+                                                    {
+                                                        fontSize: "0.75rem",
+                                                        overflow: "hidden",
+                                                        textOverflow:
+                                                            "ellipsis",
+                                                        whiteSpace: "nowrap",
+                                                    },
+                                            }}
+                                        />
+                                    </MenuItem>
+                                ))}
+                        </Menu>
+
                         {isEditing ? (
                             <input
                                 ref={inputRef}
@@ -562,12 +728,15 @@ const EditNodeModal = ({ node, segments, onSave, onCancel }) => {
         return docs;
     });
 
+    // Initialize folder links
+    const [folderLinks, setFolderLinks] = useState(node.folderLinks || []);
+
     const [documentMenuAnchor, setDocumentMenuAnchor] = useState(null);
 
     const handleSave = () => {
         // Maintain backward compatibility by setting document property for legacy support
         const primaryDocument = documents.length > 0 ? documents[0] : null;
-        onSave(text, segment, primaryDocument, documents);
+        onSave(text, segment, primaryDocument, documents, folderLinks);
     };
 
     const handleAttachDocument = async () => {
@@ -641,6 +810,36 @@ const EditNodeModal = ({ node, segments, onSave, onCancel }) => {
         }
     };
 
+    // Folder link handlers
+    const handleAttachFolder = async () => {
+        try {
+            console.log("Starting folder attachment...");
+            const result = await window.electronAPI.attachFolder();
+            console.log("Folder attachment result:", result);
+
+            if (result.success && result.folder) {
+                console.log("Successfully attached folder:", result.folder);
+                // Add new folder to the existing list
+                setFolderLinks((prev) => [...prev, result.folder]);
+            } else {
+                console.error("Folder attachment failed:", result);
+                alert(
+                    "Failed to attach folder: " +
+                        (result.error || "Unknown error")
+                );
+            }
+        } catch (error) {
+            console.error("Error attaching folder:", error);
+            alert("Failed to attach folder: " + error.message);
+        }
+    };
+
+    const handleRemoveFolder = (folderId) => {
+        setFolderLinks((prev) =>
+            prev.filter((folder) => folder.id !== folderId)
+        );
+    };
+
     const getFileIcon = (fileType) => {
         switch (fileType) {
             case "pdf":
@@ -651,6 +850,10 @@ const EditNodeModal = ({ node, segments, onSave, onCancel }) => {
                 return <TableChart color="success" />;
             case "image":
                 return <Image color="info" />;
+            case "autocad":
+                return <Architecture style={{ color: "#ff6b35" }} />;
+            case "solidworks":
+                return <Engineering style={{ color: "#005cb9" }} />;
             default:
                 return <InsertDriveFile color="action" />;
         }
@@ -891,6 +1094,88 @@ const EditNodeModal = ({ node, segments, onSave, onCancel }) => {
                                 sx={{ fontStyle: "italic" }}
                             >
                                 No documents attached
+                            </Typography>
+                        )}
+                    </Box>
+
+                    {/* Folder Links */}
+                    <Box>
+                        <Typography variant="subtitle1" gutterBottom>
+                            Folder Links:
+                        </Typography>
+
+                        {/* Attach Folder Button */}
+                        <Button
+                            variant="outlined"
+                            startIcon={<Add />}
+                            onClick={handleAttachFolder}
+                            size="small"
+                            sx={{ textTransform: "none", mb: 2 }}
+                        >
+                            Add Folder Link
+                        </Button>
+
+                        {/* Display linked folders */}
+                        {folderLinks.length > 0 && (
+                            <Box
+                                sx={{
+                                    display: "flex",
+                                    flexDirection: "column",
+                                    gap: 1,
+                                }}
+                            >
+                                {folderLinks.map((folder, index) => (
+                                    <Box
+                                        key={folder.id}
+                                        sx={{
+                                            display: "flex",
+                                            alignItems: "center",
+                                            gap: 1,
+                                            p: 1,
+                                            border: "1px solid #e0e0e0",
+                                            borderRadius: 1,
+                                            backgroundColor: "#fafafa",
+                                        }}
+                                    >
+                                        <Folder color="primary" />
+                                        <Box sx={{ flex: 1, minWidth: 0 }}>
+                                            <Typography variant="body2" noWrap>
+                                                {folder.name}
+                                            </Typography>
+                                            <Typography
+                                                variant="caption"
+                                                color="text.secondary"
+                                                sx={{
+                                                    overflow: "hidden",
+                                                    textOverflow: "ellipsis",
+                                                    whiteSpace: "nowrap",
+                                                    display: "block",
+                                                }}
+                                            >
+                                                {folder.path}
+                                            </Typography>
+                                        </Box>
+                                        <IconButton
+                                            size="small"
+                                            onClick={() =>
+                                                handleRemoveFolder(folder.id)
+                                            }
+                                            sx={{ color: "error.main" }}
+                                        >
+                                            <Delete />
+                                        </IconButton>
+                                    </Box>
+                                ))}
+                            </Box>
+                        )}
+
+                        {folderLinks.length === 0 && (
+                            <Typography
+                                variant="body2"
+                                color="text.secondary"
+                                sx={{ fontStyle: "italic" }}
+                            >
+                                No folders linked
                             </Typography>
                         )}
                     </Box>
