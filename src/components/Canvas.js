@@ -101,8 +101,8 @@ const Canvas = ({
                     y: currentDrawing.y,
                     width: currentDrawing.width,
                     height: currentDrawing.height,
-                    color: "#e3f2fd",
-                    borderColor: "#2196f3",
+                    color: "#e3f2fd", // Light blue pastel
+                    borderColor: "#2196f3", // Blue border
                     title: "Container",
                 });
                 onStopDrawingContainer();
@@ -240,23 +240,27 @@ const Canvas = ({
                     @keyframes borderPulse {
                         0% {
                             border-color: #007AFF;
-                            box-shadow: inset 0 0 20px rgba(0, 122, 255, 0.15), 0 0 0 0 rgba(0, 122, 255, 0.4);
+                            box-shadow: inset 0 0 20px rgba(0, 122, 255, 0.2), 0 0 0 0 rgba(0, 122, 255, 0.5);
                         }
-                        25% {
+                        20% {
                             border-color: #5856D6;
-                            box-shadow: inset 0 0 25px rgba(88, 86, 214, 0.2), 0 0 0 4px rgba(88, 86, 214, 0.2);
+                            box-shadow: inset 0 0 25px rgba(88, 86, 214, 0.25), 0 0 0 4px rgba(88, 86, 214, 0.3);
                         }
-                        50% {
+                        40% {
                             border-color: #AF52DE;
-                            box-shadow: inset 0 0 30px rgba(175, 82, 222, 0.25), 0 0 0 8px rgba(175, 82, 222, 0.15);
+                            box-shadow: inset 0 0 30px rgba(175, 82, 222, 0.3), 0 0 0 8px rgba(175, 82, 222, 0.2);
                         }
-                        75% {
+                        60% {
                             border-color: #FF2D92;
-                            box-shadow: inset 0 0 25px rgba(255, 45, 146, 0.2), 0 0 0 4px rgba(255, 45, 146, 0.2);
+                            box-shadow: inset 0 0 25px rgba(255, 45, 146, 0.25), 0 0 0 6px rgba(255, 45, 146, 0.25);
+                        }
+                        80% {
+                            border-color: #5856D6;
+                            box-shadow: inset 0 0 25px rgba(88, 86, 214, 0.25), 0 0 0 4px rgba(88, 86, 214, 0.3);
                         }
                         100% {
                             border-color: #007AFF;
-                            box-shadow: inset 0 0 20px rgba(0, 122, 255, 0.15), 0 0 0 0 rgba(0, 122, 255, 0.4);
+                            box-shadow: inset 0 0 20px rgba(0, 122, 255, 0.2), 0 0 0 0 rgba(0, 122, 255, 0.5);
                         }
                     }
                 `}

@@ -268,8 +268,8 @@ const Container = ({
                             backgroundColor: "white",
                             border: "1px solid #ddd",
                             "&:hover": {
-                                backgroundColor: "#f0f8ff",
-                                borderColor: "#2196f3",
+                                backgroundColor: "#e0f7fa", // Light company color
+                                borderColor: "#008093", // Company primary
                             },
                         }}
                     >

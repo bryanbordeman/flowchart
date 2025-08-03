@@ -13,11 +13,105 @@ import {
     Button,
     Typography,
     IconButton,
+    ThemeProvider,
+    createTheme,
 } from "@mui/material";
 import { styled } from "@mui/material/styles";
 import WarningIcon from "@mui/icons-material/Warning";
 import CloseIcon from "@mui/icons-material/Close";
 import "./App.css";
+
+// Create custom theme with company colors
+const theme = createTheme({
+    palette: {
+        primary: {
+            main: "#008093", // Albatross Petrol
+            light: "#4fb3c4",
+            dark: "#005a65",
+            contrastText: "#ffffff",
+        },
+        secondary: {
+            main: "#40444e", // Graphit-Grey for secondary actions
+            light: "#6c6c6c",
+            dark: "#2c2c2c",
+            contrastText: "#ffffff",
+        },
+        error: {
+            main: "#f44336", // Keep red for destructive actions
+            light: "#ff7961",
+            dark: "#ba000d",
+            contrastText: "#ffffff",
+        },
+        warning: {
+            main: "#007f9b", // Petrol-Blue for warnings
+            light: "#4fb3c4",
+            dark: "#005a65",
+            contrastText: "#ffffff",
+        },
+        info: {
+            main: "#01557f", // Blue for information
+            light: "#4fb3c4",
+            dark: "#003d5a",
+            contrastText: "#ffffff",
+        },
+        success: {
+            main: "#7dc4a3", // Petrol-Green for success
+            light: "#a8d4c0",
+            dark: "#5a9e7d",
+            contrastText: "#ffffff",
+        },
+        grey: {
+            50: "#fafafa",
+            100: "#f5f5f5",
+            200: "#eeeeee",
+            300: "#e0e0e0",
+            400: "#bdbdbd",
+            500: "#9e9e9e",
+            600: "#757575",
+            700: "#616161",
+            800: "#424242",
+            900: "#212121",
+        },
+        background: {
+            default: "#ffffff",
+            paper: "#ffffff",
+        },
+        text: {
+            primary: "#212121",
+            secondary: "#757575",
+        },
+    },
+    components: {
+        // Ensure icons in buttons use proper colors
+        MuiButton: {
+            styleOverrides: {
+                root: {
+                    "& .MuiSvgIcon-root": {
+                        color: "inherit",
+                    },
+                },
+            },
+        },
+        MuiIconButton: {
+            styleOverrides: {
+                root: {
+                    "&.MuiIconButton-colorPrimary": {
+                        color: "#008093",
+                        "&:hover": {
+                            backgroundColor: "rgba(0, 128, 147, 0.04)",
+                        },
+                    },
+                    "&.MuiIconButton-colorSecondary": {
+                        color: "#40444e",
+                        "&:hover": {
+                            backgroundColor: "rgba(64, 68, 78, 0.04)",
+                        },
+                    },
+                },
+            },
+        },
+    },
+});
 
 const StyledDialog = styled(Dialog)(({ theme }) => ({
     "& .MuiDialog-paper": {
@@ -97,13 +191,13 @@ function App() {
 
     const [segments, setSegments] = useState([
         { id: "default", name: "Default", color: "#FFFFFF" },
-        { id: "sales", name: "Sales", color: "#C8E6C9" },
-        { id: "engineering", name: "Engineering", color: "#BBDEFB" },
-        { id: "accounting", name: "Accounting", color: "#FFF9C4" },
-        { id: "operations", name: "Operations", color: "#B2EBF2" },
-        { id: "purchasing", name: "Purchasing", color: "#E1BEE7" },
-        { id: "field", name: "Field", color: "#FFCC80" },
-        { id: "shop", name: "Shop", color: "#FFCDD2" },
+        { id: "sales", name: "Sales", color: "#C8E6C9" }, // Light green
+        { id: "engineering", name: "Engineering", color: "#BBDEFB" }, // Light blue
+        { id: "accounting", name: "Accounting", color: "#FFF9C4" }, // Light yellow
+        { id: "operations", name: "Operations", color: "#FFCC80" }, // Light orange
+        { id: "purchasing", name: "Purchasing", color: "#E1BEE7" }, // Light purple
+        { id: "field", name: "Field", color: "#FFCDD2" }, // Light pink
+        { id: "shop", name: "Shop", color: "#B2EBF2" }, // Light cyan
     ]);
 
     // Undo/Redo state management
@@ -222,9 +316,7 @@ function App() {
             setIsDirty(true);
         },
         [saveToHistory]
-    );
-
-    // Get default text for node types
+    ); // Get default text for node types
     const getDefaultText = (type) => {
         switch (type) {
             case "start-end":
@@ -804,6 +896,53 @@ function App() {
         [cancelConnection]
     );
 
+    // Handle start modal button actions
+    const handleStartModalAction = useCallback(
+        async (action) => {
+            setLoadingFadeOut(true);
+
+            // Wait for fade out animation to complete
+            setTimeout(async () => {
+                setShowLoadingModal(false);
+
+                if (action === "load") {
+                    // Trigger load file dialog
+                    if (window.electronAPI) {
+                        try {
+                            const result = await window.electronAPI.openFile();
+                            if (result.success) {
+                                loadFile(result.data);
+                                setCurrentFile(result.filePath);
+                            } else if (result.error !== "Open canceled") {
+                                alert("Error opening file: " + result.error);
+                            }
+                        } catch (error) {
+                            alert("Error opening file: " + error.message);
+                        }
+                    } else {
+                        // Web fallback - file input
+                        const input = document.createElement("input");
+                        input.type = "file";
+                        input.accept = ".wfn,.flowchart,.json";
+                        input.onchange = (e) => {
+                            const file = e.target.files[0];
+                            if (file) {
+                                const reader = new FileReader();
+                                reader.onload = (event) => {
+                                    loadFile(event.target.result);
+                                };
+                                reader.readAsText(file);
+                            }
+                        };
+                        input.click();
+                    }
+                }
+                // If action is 'new', just close the modal (default empty state)
+            }, 500); // Match the fade out transition duration
+        },
+        [loadFile]
+    );
+
     // Load file dialog
     const loadFileDialog = useCallback(async () => {
         if (isDirty) {
@@ -1132,7 +1271,7 @@ function App() {
     ]);
 
     return (
-        <>
+        <ThemeProvider theme={theme}>
             <div className={`app ${showLoadingModal ? "app-loading" : ""}`}>
                 <Toolbar
                     onNew={clearCanvas}
@@ -1238,7 +1377,9 @@ function App() {
                             flexDirection: "column",
                             justifyContent: "center",
                             alignItems: "center",
-                            border: "2px solid #008093",
+                            border: `2px solid ${theme.palette.primary.main}`,
+                            padding: "20px",
+                            position: "relative",
                         }}
                     >
                         {/* Logo */}
@@ -1248,15 +1389,56 @@ function App() {
                             style={{
                                 width: "500px",
                                 height: "auto",
-                                marginBottom: "20px",
+                                marginBottom: "30px",
                             }}
                         />
 
-                        {/* Credits */}
+                        {/* Action Buttons */}
                         <div
                             style={{
-                                textAlign: "center",
-                                color: "#666",
+                                display: "flex",
+                                gap: "20px",
+                                marginBottom: "30px",
+                            }}
+                        >
+                            <Button
+                                variant="contained"
+                                color="primary"
+                                onClick={() => handleStartModalAction("new")}
+                                sx={{
+                                    padding: "12px 40px",
+                                    fontSize: "16px",
+                                    fontWeight: "bold",
+                                    borderRadius: "8px",
+                                    minWidth: "120px",
+                                }}
+                            >
+                                New
+                            </Button>
+                            <Button
+                                variant="outlined"
+                                color="primary"
+                                onClick={() => handleStartModalAction("load")}
+                                sx={{
+                                    padding: "12px 40px",
+                                    fontSize: "16px",
+                                    fontWeight: "bold",
+                                    borderRadius: "8px",
+                                    minWidth: "120px",
+                                }}
+                            >
+                                Load
+                            </Button>
+                        </div>
+
+                        {/* Credits - Bottom Right Corner */}
+                        <div
+                            style={{
+                                position: "absolute",
+                                bottom: "20px",
+                                right: "20px",
+                                textAlign: "right",
+                                color: theme.palette.text.secondary,
                                 fontSize: "13px",
                                 lineHeight: "1.4",
                             }}
@@ -1288,7 +1470,7 @@ function App() {
                 <DialogTitle
                     id="unsaved-changes-dialog-title"
                     sx={{
-                        color: "#333",
+                        color: "text.primary",
                         display: "flex",
                         alignItems: "center",
                         gap: 2,
@@ -1297,7 +1479,7 @@ function App() {
                 >
                     <WarningIcon
                         sx={{
-                            color: "#4fc3f7",
+                            color: "primary.main",
                             fontSize: "28px",
                         }}
                     />
@@ -1305,11 +1487,11 @@ function App() {
                     <IconButton
                         aria-label="close"
                         onClick={handleCancelAction}
+                        color="secondary"
                         sx={{
                             position: "absolute",
                             right: 8,
                             top: 8,
-                            color: "#666",
                         }}
                     >
                         <CloseIcon />
@@ -1318,7 +1500,7 @@ function App() {
                 <DialogContent>
                     <Typography
                         sx={{
-                            color: "#333",
+                            color: "text.primary",
                             fontSize: "16px",
                             lineHeight: 1.5,
                             textAlign: "center",
@@ -1346,12 +1528,9 @@ function App() {
                     <Button
                         onClick={handleContinueWithoutSaving}
                         variant="contained"
+                        color="secondary"
                         sx={{
                             flex: 1,
-                            backgroundColor: "#f44336",
-                            "&:hover": {
-                                backgroundColor: "#d32f2f",
-                            },
                         }}
                     >
                         Don't Save
@@ -1359,19 +1538,16 @@ function App() {
                     <Button
                         onClick={handleSaveAndContinue}
                         variant="contained"
+                        color="primary"
                         sx={{
                             flex: 1,
-                            backgroundColor: "#4fc3f7",
-                            "&:hover": {
-                                backgroundColor: "#29b6f6",
-                            },
                         }}
                     >
                         Save & Continue
                     </Button>
                 </DialogActions>
             </StyledDialog>
-        </>
+        </ThemeProvider>
     );
 }
 

@@ -637,7 +637,7 @@ const FlowchartNode = ({
                                 border: "1px solid #ddd",
                                 "&:hover": {
                                     backgroundColor: "#ffebee",
-                                    borderColor: "#f44336",
+                                    borderColor: "#f44336", // Keep red for delete
                                 },
                             }}
                         >
@@ -660,8 +660,8 @@ const FlowchartNode = ({
                                 backgroundColor: "white",
                                 border: "1px solid #ddd",
                                 "&:hover": {
-                                    backgroundColor: "#e3f2fd",
-                                    borderColor: "#2196f3",
+                                    backgroundColor: "#e0f7fa",
+                                    borderColor: "#008093", // Company primary
                                 },
                             }}
                         >
@@ -686,7 +686,7 @@ const FlowchartNode = ({
                                 cursor: "nw-resize",
                                 zIndex: 1000,
                                 "&:hover": {
-                                    backgroundColor: "#e3f2fd",
+                                    backgroundColor: "#e0f7fa", // Light company color
                                 },
                             }}
                         />

@@ -6,7 +6,7 @@ import SegmentManager from "./SegmentManager";
 import { Avatar } from "@mui/material";
 
 // Custom SVG icon components (all use the same color)
-const ICON_COLOR = "#1976d2";
+const ICON_COLOR = "#008093"; // Company primary color
 
 const DiamondIcon = () => (
     <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
@@ -204,8 +204,8 @@ const Sidebar = ({
                     fontSize: 15,
                     pl: 1.5,
                     pr: 1,
-                    backgroundColor: isDrawingContainer ? "#1976d2" : "white",
-                    color: isDrawingContainer ? "white" : "#1976d2",
+                    backgroundColor: isDrawingContainer ? "#008093" : "white",
+                    color: isDrawingContainer ? "white" : "#008093",
                     alignItems: "center",
                     textAlign: "left",
                     "&:hover": {
