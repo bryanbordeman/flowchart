@@ -16,7 +16,8 @@
         "preelectron-pack": "npm run build",
         "dev": "concurrently -k \"BROWSER=none npm start\" \"wait-on tcp:3000 && npm run electron-dev\"",
         "start-electron": "concurrently \"npm start\" \"wait-on http://localhost:3000 && ELECTRON_IS_DEV=true electron .\"",
-        "dist": "npm run build && electron-builder --publish=never"
+        "dist": "npm run build && electron-builder --publish=never",
+        "app:dist-win": "npm run build && electron-builder --win --x64"
     },
     "dependencies": {
         "@emotion/react": "^11.14.0",
@@ -50,7 +51,8 @@
             "public/electron.js",
             "public/preload.js",
             "public/icon.png",
-            "public/icon.ico"
+            "public/icon.ico",
+            "public/icon.icns"
         ],
         "extraResources": [
             {
@@ -60,10 +62,23 @@
             {
                 "from": "public/icon.ico",
                 "to": "icon.ico"
+            },
+            {
+                "from": "public/icon.icns",
+                "to": "icon.icns"
+            }
+        ],
+        "fileAssociations": [
+            {
+                "ext": "wfn",
+                "name": "Workflow Navigator File",
+                "description": "Workflow Navigator Flowchart File",
+                "icon": "public/icon.ico",
+                "role": "Editor"
             }
         ],
         "mac": {
-            "icon": "public/icon.png",
+            "icon": "public/icon.icns",
             "category": "public.app-category.productivity",
             "target": [
                 {
@@ -99,7 +114,11 @@
         },
         "nsis": {
             "oneClick": false,
-            "allowToChangeInstallationDirectory": true
+            "allowToChangeInstallationDirectory": true,
+            "createDesktopShortcut": true,
+            "createStartMenuShortcut": true,
+            "installerIcon": "public/icon.ico",
+            "uninstallerIcon": "public/icon.ico"
         }
     },
     "browserslist": {

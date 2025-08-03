@@ -62,6 +62,23 @@ function createWindow() {
     // Show window when ready to prevent visual flash
     mainWindow.once("ready-to-show", () => {
         mainWindow.show();
+
+        // Check if we need to open a file from command line arguments
+        const openFilePath = app.commandLine.getSwitchValue("open-file");
+        if (openFilePath && fs.existsSync(openFilePath)) {
+            try {
+                const data = fs.readFileSync(openFilePath, "utf-8");
+                mainWindow.webContents.send("menu-open-file", {
+                    data: data,
+                    filePath: openFilePath,
+                });
+            } catch (error) {
+                dialog.showErrorBox(
+                    "Error",
+                    "Failed to open file: " + error.message
+                );
+            }
+        }
     });
 
     // Handle navigation for security
@@ -108,7 +125,7 @@ function createMenu() {
                             filters: [
                                 {
                                     name: "Flowchart Files",
-                                    extensions: ["flowchart"],
+                                    extensions: ["wfn"],
                                 },
                                 { name: "JSON Files", extensions: ["json"] },
                                 { name: "All Files", extensions: ["*"] },
@@ -121,10 +138,10 @@ function createMenu() {
                                     result.filePaths[0],
                                     "utf-8"
                                 );
-                                mainWindow.webContents.send(
-                                    "menu-open-file",
-                                    data
-                                );
+                                mainWindow.webContents.send("menu-open-file", {
+                                    data: data,
+                                    filePath: result.filePaths[0],
+                                });
                             } catch (error) {
                                 dialog.showErrorBox(
                                     "Error",
@@ -216,20 +233,20 @@ ipcMain.handle("save-file", async (event, data, suggestedName) => {
         }
 
         // Create default filename from suggested name or fallback
-        let defaultPath = "flowchart.flowchart";
+        let defaultPath = "flowchart.wfn";
         if (suggestedName && suggestedName.trim()) {
             // Clean the suggested name for use as filename
             const cleanName = suggestedName
                 .trim()
                 .replace(/[^\w\s-]/g, "")
                 .replace(/\s+/g, "_");
-            defaultPath = `${cleanName}.flowchart`;
+            defaultPath = `${cleanName}.wfn`;
         }
 
         const result = await dialog.showSaveDialog(mainWindow, {
             defaultPath: defaultPath,
             filters: [
-                { name: "Flowchart Files", extensions: ["flowchart"] },
+                { name: "Flowchart Files", extensions: ["wfn"] },
                 { name: "JSON Files", extensions: ["json"] },
             ],
         });
@@ -258,7 +275,7 @@ ipcMain.handle("open-file", async (event) => {
         const result = await dialog.showOpenDialog(mainWindow, {
             properties: ["openFile"],
             filters: [
-                { name: "Flowchart Files", extensions: ["flowchart"] },
+                { name: "Flowchart Files", extensions: ["wfn"] },
                 { name: "JSON Files", extensions: ["json"] },
                 { name: "All Files", extensions: ["*"] },
             ],
@@ -598,6 +615,38 @@ app.whenReady().then(() => {
     }
     createWindow();
 });
+
+// Handle file associations - when user double-clicks a .wfn file
+app.on("open-file", (event, filePath) => {
+    event.preventDefault();
+
+    if (mainWindow) {
+        // If window exists, send the file data to it
+        try {
+            const data = fs.readFileSync(filePath, "utf-8");
+            mainWindow.webContents.send("menu-open-file", {
+                data: data,
+                filePath: filePath,
+            });
+            mainWindow.focus();
+        } catch (error) {
+            dialog.showErrorBox(
+                "Error",
+                "Failed to open file: " + error.message
+            );
+        }
+    } else {
+        // Store the file to open it once the window is ready
+        app.commandLine.appendSwitch("open-file", filePath);
+    }
+}); // Handle command line arguments for file associations on Windows/Linux
+if (process.argv.length > 1) {
+    const filePath = process.argv[process.argv.length - 1];
+    if (filePath && filePath.endsWith(".wfn") && fs.existsSync(filePath)) {
+        // Store the file path to open once the app is ready
+        app.commandLine.appendSwitch("open-file", filePath);
+    }
+}
 
 app.on("window-all-closed", () => {
     if (process.platform !== "darwin") {

@@ -991,15 +991,32 @@ function App() {
                 clearCanvas();
             });
 
-            window.electronAPI.onMenuOpenFile((event, data) => {
+            window.electronAPI.onMenuOpenFile((event, dataOrObject) => {
+                let data, filePath;
+
+                // Handle both old format (just data) and new format (object with data and filePath)
+                if (typeof dataOrObject === "string") {
+                    data = dataOrObject;
+                    filePath = null;
+                } else if (dataOrObject && typeof dataOrObject === "object") {
+                    data = dataOrObject.data;
+                    filePath = dataOrObject.filePath;
+                }
+
                 if (isDirty) {
                     setUnsavedDialogAction(() => () => {
                         loadFile(data);
+                        if (filePath) {
+                            setCurrentFile(filePath);
+                        }
                     });
                     setShowUnsavedDialog(true);
                     return;
                 }
                 loadFile(data);
+                if (filePath) {
+                    setCurrentFile(filePath);
+                }
             });
 
             window.electronAPI.onMenuSaveFile(() => {
