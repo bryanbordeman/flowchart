@@ -186,11 +186,18 @@ const Canvas = ({
     if (nodes.length > 0) {
         minX = Math.min(...nodes.map((n) => n.position.x));
         minY = Math.min(...nodes.map((n) => n.position.y));
-        maxX = Math.max(...nodes.map((n) => n.position.x + 120));
+        maxX = Math.max(
+            ...nodes.map((n) => {
+                const nodeWidth = n.width || 120;
+                return n.position.x + nodeWidth;
+            })
+        );
         maxY = Math.max(
-            ...nodes.map(
-                (n) => n.position.y + (n.type === "decision" ? 120 : 80)
-            )
+            ...nodes.map((n) => {
+                const defaultHeight = n.type === "decision" ? 120 : 80;
+                const nodeHeight = n.height || defaultHeight;
+                return n.position.y + nodeHeight;
+            })
         );
         // Add margin for scrolling
         maxX = maxX + margin;
@@ -441,21 +448,28 @@ const Canvas = ({
                             const getPortPosition = (node, port) => {
                                 const nodeX = node.position.x;
                                 const nodeY = node.position.y;
+
+                                // Use dynamic dimensions if available, otherwise use defaults
+                                const nodeWidth = node.width || 120;
+                                const nodeHeight =
+                                    node.height ||
+                                    (node.type === "decision" ? 120 : 80);
+
                                 if (node.type === "decision") {
-                                    const centerX = nodeX + 60;
-                                    const centerY = nodeY + 60;
+                                    const centerX = nodeX + nodeWidth / 2;
+                                    const centerY = nodeY + nodeHeight / 2;
                                     switch (port) {
                                         case "top":
                                             return { x: centerX, y: nodeY };
                                         case "right":
                                             return {
-                                                x: nodeX + 120,
+                                                x: nodeX + nodeWidth,
                                                 y: centerY,
                                             };
                                         case "bottom":
                                             return {
                                                 x: centerX,
-                                                y: nodeY + 120,
+                                                y: nodeY + nodeHeight,
                                             };
                                         case "left":
                                             return { x: nodeX, y: centerY };
@@ -463,15 +477,21 @@ const Canvas = ({
                                             return { x: centerX, y: centerY };
                                     }
                                 }
-                                const centerX = nodeX + 60;
-                                const centerY = nodeY + 40;
+                                const centerX = nodeX + nodeWidth / 2;
+                                const centerY = nodeY + nodeHeight / 2;
                                 switch (port) {
                                     case "top":
                                         return { x: centerX, y: nodeY };
                                     case "right":
-                                        return { x: nodeX + 120, y: centerY };
+                                        return {
+                                            x: nodeX + nodeWidth,
+                                            y: centerY,
+                                        };
                                     case "bottom":
-                                        return { x: centerX, y: nodeY + 80 };
+                                        return {
+                                            x: centerX,
+                                            y: nodeY + nodeHeight,
+                                        };
                                     case "left":
                                         return { x: nodeX, y: centerY };
                                     default:

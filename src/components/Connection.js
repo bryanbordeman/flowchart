@@ -13,30 +13,30 @@ const Connection = ({ connection, nodes, onDelete }) => {
         const nodeX = node.position.x;
         const nodeY = node.position.y;
 
-        // Different dimensions for different node types
-        let nodeWidth = 120;
-        let nodeHeight = 80;
+        // Use dynamic dimensions if available, otherwise use defaults
+        let nodeWidth = node.width || 120;
+        let nodeHeight = node.height || (node.type === "decision" ? 120 : 80);
 
         if (node.type === "decision") {
-            // Decision is a 120x120 container with centered diamond
-            const centerX = nodeX + 60; // Center of 120px diamond container
-            const centerY = nodeY + 60;
+            // Decision is a square container with centered diamond
+            const centerX = nodeX + nodeWidth / 2;
+            const centerY = nodeY + nodeHeight / 2;
 
             switch (port) {
                 case "top":
                     return { x: centerX, y: nodeY };
                 case "right":
-                    return { x: nodeX + 120, y: centerY };
+                    return { x: nodeX + nodeWidth, y: centerY };
                 case "bottom":
-                    return { x: centerX, y: nodeY + 120 };
+                    return { x: centerX, y: nodeY + nodeHeight };
                 case "left":
                     return { x: nodeX, y: centerY };
                 default:
                     return { x: centerX, y: centerY };
             }
         } else if (node.type === "connector") {
-            nodeWidth = 40;
-            nodeHeight = 40;
+            nodeWidth = node.width || 40;
+            nodeHeight = node.height || 40;
             // Use dynamic positioning for connector
             switch (port) {
                 case "top":
@@ -67,17 +67,17 @@ const Connection = ({ connection, nodes, onDelete }) => {
             }
         }
 
-        // Standard nodes (process, start, end, data) - 120x80
-        const centerX = nodeX + 60; // Center of 120px width
-        const centerY = nodeY + 40; // Center of 80px height
+        // Standard nodes (process, start, end, data) - use dynamic dimensions
+        const centerX = nodeX + nodeWidth / 2;
+        const centerY = nodeY + nodeHeight / 2;
 
         switch (port) {
             case "top":
                 return { x: centerX, y: nodeY };
             case "right":
-                return { x: nodeX + 120, y: centerY };
+                return { x: nodeX + nodeWidth, y: centerY };
             case "bottom":
-                return { x: centerX, y: nodeY + 80 };
+                return { x: centerX, y: nodeY + nodeHeight };
             case "left":
                 return { x: nodeX, y: centerY };
             default:

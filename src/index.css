@@ -141,8 +141,9 @@ code {
     border: 2px solid #007bff;
     border-radius: 8px;
     padding: 10px;
-    width: 120px;
-    height: 80px;
+    /* Remove fixed width and height to allow dynamic sizing */
+    min-width: 80px;
+    min-height: 60px;
     cursor: move;
     user-select: none;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
@@ -215,10 +216,9 @@ code {
 
 .flowchart-node.input-output {
     border-radius: 50%;
-    width: 120px;
-    height: 80px;
-    min-width: 120px;
-    min-height: 80px;
+    /* Remove fixed dimensions to allow dynamic sizing */
+    min-width: 80px;
+    min-height: 60px;
     /* Remove transform - use same dimensions as rectangular nodes */
 }
 
@@ -233,8 +233,9 @@ code {
 
 /* Decision diamond - keep container grid-aligned for proper dragging */
 .flowchart-node.decision {
-    width: 120px !important;
-    height: 120px !important;
+    /* Remove fixed dimensions to allow dynamic sizing */
+    min-width: 80px !important;
+    min-height: 80px !important;
     border-radius: 0 !important;
     /* Remove transform from main container */
     padding: 0 !important;
@@ -248,16 +249,18 @@ code {
 .flowchart-node.decision::before {
     content: "";
     position: absolute;
-    top: 25px;
-    left: 25px;
-    width: 70px;
-    height: 70px;
+    /* Center the diamond and make it scale with container */
+    top: 50%;
+    left: 50%;
+    /* Use 70% of container size with minimum and maximum limits */
+    width: min(max(70%, 50px), calc(100% - 20px));
+    height: min(max(70%, 50px), calc(100% - 20px));
     border: 2px solid #4682b4;
     background-color: var(
         --diamond-color,
         #ffffff
     ); /* Use the CSS custom property for diamond color */
-    transform: rotate(45deg);
+    transform: translate(-50%, -50%) rotate(45deg);
     transform-origin: center center;
     z-index: 1;
 }
@@ -275,6 +278,14 @@ code {
     pointer-events: auto !important;
     position: relative !important;
     z-index: 15 !important;
+    padding: 12px !important; /* Extra padding for diamond shape */
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+    word-break: break-all !important; /* Force long words to break */
+    word-wrap: break-word !important;
+    overflow-wrap: anywhere !important; /* Modern property for aggressive word wrapping */
+    hyphens: auto !important;
+    text-align: center !important;
 }
 
 /* Connection ports for decision diamond - positioned at actual diamond tips */
@@ -288,29 +299,7 @@ code {
     z-index: 20 !important;
 }
 
-/* Top diamond tip - grid aligned */
-.flowchart-node.decision .port-top {
-    top: -6px !important;
-    left: 54px !important; /* Center of 120px container */
-}
-
-/* Right diamond tip - grid aligned */
-.flowchart-node.decision .port-right {
-    right: -6px !important;
-    top: 54px !important; /* Center of 120px container */
-}
-
-/* Bottom diamond tip - grid aligned */
-.flowchart-node.decision .port-bottom {
-    bottom: -6px !important;
-    left: 54px !important; /* Center of 120px container */
-}
-
-/* Left diamond tip - grid aligned */
-.flowchart-node.decision .port-left {
-    left: -6px !important;
-    top: 54px !important; /* Center of 120px container */
-}
+/* Decision node ports use dynamic positioning */
 
 /* Decision labels on connections */
 .decision-label {
@@ -347,6 +336,13 @@ code {
     text-align: center;
     width: 100%;
     height: 100%;
+    padding: 8px;
+    box-sizing: border-box;
+    overflow: hidden;
+    word-break: break-all; /* Force long words to break */
+    word-wrap: break-word;
+    overflow-wrap: anywhere; /* Modern property for aggressive word wrapping */
+    hyphens: auto;
 }
 
 .flowchart-node.connector {
@@ -366,6 +362,14 @@ code {
     display: flex;
     align-items: center;
     justify-content: center;
+    padding: 8px; /* Add padding to prevent text from touching edges */
+    box-sizing: border-box;
+    overflow: hidden; /* Prevent overflow */
+    word-break: break-all; /* Force long words to break */
+    word-wrap: break-word; /* Allow long words to break */
+    overflow-wrap: anywhere; /* Modern property for aggressive word wrapping */
+    hyphens: auto; /* Enable hyphenation where supported */
+    text-align: center;
 }
 
 /* Connection Ports */
@@ -410,46 +414,15 @@ code {
     background-color: #17a2b8;
 }
 
-.port-top {
-    top: -6px;
-    left: 54px; /* Center of 120px width (60px) - 6px for port center */
-}
-
-.port-right {
-    right: -6px;
-    top: 34px; /* Center vertically for 80px height */
-}
-
-.port-bottom {
-    bottom: -6px;
-    left: 54px; /* Center of 120px width (60px) - 6px for port center */
-}
-
+.port-top,
+.port-right,
+.port-bottom,
 .port-left {
-    left: -6px;
-    top: 34px; /* Center vertically for 80px height */
+    /* Position will be set dynamically via inline styles */
+    position: absolute;
 }
 
-/* Input/Output specific connection port positioning for 120x80 ellipse - same as rectangular nodes */
-.flowchart-node.input-output .port-top {
-    top: -6px;
-    left: 54px; /* Center of 120px width (60px) - 6px for port center */
-}
-
-.flowchart-node.input-output .port-right {
-    right: -6px;
-    top: 34px; /* Center vertically for 80px height */
-}
-
-.flowchart-node.input-output .port-bottom {
-    bottom: -6px;
-    left: 54px; /* Center of 120px width (60px) - 6px for port center */
-}
-
-.flowchart-node.input-output .port-left {
-    left: -6px;
-    top: 34px; /* Center vertically for 80px height */
-}
+/* Input/Output nodes use same dynamic positioning as other nodes */
 
 @keyframes port-pulse {
     0% {

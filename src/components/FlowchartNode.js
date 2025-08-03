@@ -61,6 +61,13 @@ const FlowchartNode = ({
     const [showEditModal, setShowEditModal] = useState(false);
     const [documentMenuAnchor, setDocumentMenuAnchor] = useState(null);
     const [folderMenuAnchor, setFolderMenuAnchor] = useState(null);
+    const [isResizing, setIsResizing] = useState(false);
+    const [resizeStart, setResizeStart] = useState({
+        x: 0,
+        y: 0,
+        width: 0,
+        height: 0,
+    });
     const inputRef = useRef(null);
     const nodeRef = useRef(null);
 
@@ -140,6 +147,163 @@ const FlowchartNode = ({
         e.stopPropagation();
         setShowEditModal(true);
     };
+
+    // Resize handlers
+    const handleResizeStart = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsResizing(true);
+        setResizeStart({
+            x: e.clientX,
+            y: e.clientY,
+            width: node.width || getDefaultWidth(),
+            height: node.height || getDefaultHeight(),
+        });
+    };
+
+    const handleResizeMove = (e) => {
+        if (!isResizing) return;
+
+        const gridSize = 20;
+        const deltaX = e.clientX - resizeStart.x;
+        const deltaY = e.clientY - resizeStart.y;
+
+        // Calculate the original aspect ratio for this node type
+        const originalWidth = getDefaultWidth();
+        const originalHeight = getDefaultHeight();
+        const aspectRatio = originalWidth / originalHeight;
+
+        // Determine which dimension to use as the primary constraint
+        // Use the larger change to determine scaling direction
+        const useWidthAsBase = Math.abs(deltaX) >= Math.abs(deltaY);
+
+        let newWidth, newHeight;
+
+        if (useWidthAsBase) {
+            // Scale based on width change
+            newWidth = Math.max(
+                getMinWidth(),
+                Math.round((resizeStart.width + deltaX) / gridSize) * gridSize
+            );
+            newHeight = Math.max(
+                getMinHeight(),
+                Math.round(newWidth / aspectRatio / gridSize) * gridSize
+            );
+        } else {
+            // Scale based on height change
+            newHeight = Math.max(
+                getMinHeight(),
+                Math.round((resizeStart.height + deltaY) / gridSize) * gridSize
+            );
+            newWidth = Math.max(
+                getMinWidth(),
+                Math.round((newHeight * aspectRatio) / gridSize) * gridSize
+            );
+        }
+
+        onUpdateNode(node.id, {
+            ...node,
+            width: newWidth,
+            height: newHeight,
+        });
+    };
+
+    const handleResizeEnd = () => {
+        setIsResizing(false);
+    };
+
+    // Helper functions for node dimensions
+    const getDefaultWidth = () => {
+        return 120; // Default node width
+    };
+
+    const getDefaultHeight = () => {
+        return node.type === "decision" ? 120 : 80; // Default heights
+    };
+
+    const getMinWidth = () => {
+        return node.type === "decision" ? 80 : 80; // Minimum width - consistent for all types
+    };
+
+    const getMinHeight = () => {
+        // Maintain aspect ratio for minimum sizes too
+        const minWidth = getMinWidth();
+        const originalWidth = getDefaultWidth();
+        const originalHeight = getDefaultHeight();
+        const aspectRatio = originalWidth / originalHeight;
+        return Math.round(minWidth / aspectRatio);
+    };
+
+    const getCurrentWidth = () => {
+        return node.width || getDefaultWidth();
+    };
+
+    const getCurrentHeight = () => {
+        return node.height || getDefaultHeight();
+    };
+
+    // Get dynamic port positions based on current node dimensions
+    const getPortStyles = () => {
+        const width = getCurrentWidth();
+        const height = getCurrentHeight();
+        const portSize = 12; // Port width/height
+        const offset = 6; // Half of port size for centering
+
+        // For decision nodes (diamond shape), ports are positioned at the diamond tips
+        if (node.type === "decision") {
+            return {
+                top: {
+                    top: -offset,
+                    left: width / 2 - offset,
+                },
+                right: {
+                    right: -offset,
+                    top: height / 2 - offset,
+                },
+                bottom: {
+                    bottom: -offset,
+                    left: width / 2 - offset,
+                },
+                left: {
+                    left: -offset,
+                    top: height / 2 - offset,
+                },
+            };
+        }
+
+        // For all other node types (rectangular, input-output ellipse, etc.)
+        return {
+            top: {
+                top: -offset,
+                left: width / 2 - offset,
+            },
+            right: {
+                right: -offset,
+                top: height / 2 - offset,
+            },
+            bottom: {
+                bottom: -offset,
+                left: width / 2 - offset,
+            },
+            left: {
+                left: -offset,
+                top: height / 2 - offset,
+            },
+        };
+    };
+
+    // Add event listeners for resize
+    React.useEffect(() => {
+        if (isResizing) {
+            document.addEventListener("mousemove", handleResizeMove);
+            document.addEventListener("mouseup", handleResizeEnd);
+
+            return () => {
+                document.removeEventListener("mousemove", handleResizeMove);
+                document.removeEventListener("mouseup", handleResizeEnd);
+            };
+        }
+    }, [isResizing, resizeStart]);
 
     const handleSaveEdit = (
         newText,
@@ -326,11 +490,13 @@ const FlowchartNode = ({
                 <div
                     ref={nodeRef}
                     className={getNodeClassName()}
-                    style={
-                        node.type === "decision"
+                    style={{
+                        width: getCurrentWidth(),
+                        height: getCurrentHeight(),
+                        ...(node.type === "decision"
                             ? { "--diamond-color": getSegmentColor() }
-                            : { backgroundColor: getSegmentColor() }
-                    }
+                            : { backgroundColor: getSegmentColor() }),
+                    }}
                     onClick={handleClick}
                     onContextMenu={handleRightClick}
                     onDoubleClick={handleDoubleClick}
@@ -388,12 +554,36 @@ const FlowchartNode = ({
                         </IconButton>
                     )}
 
+                    {/* Resize handle - only show when selected */}
+                    {isSelected && (
+                        <div
+                            onMouseDown={handleResizeStart}
+                            title="Drag to resize"
+                            style={{
+                                position: "absolute",
+                                bottom: -3,
+                                right: -3,
+                                width: 12,
+                                height: 12,
+                                backgroundColor: "white",
+                                border: "2px solid #2196f3",
+                                borderRadius: "50%",
+                                cursor: "nw-resize",
+                                zIndex: 1000,
+                                "&:hover": {
+                                    backgroundColor: "#e3f2fd",
+                                },
+                            }}
+                        />
+                    )}
+
                     {/* Connection Ports */}
                     {node.type !== "connector" && (
                         <>
                             {/* Top Port */}
                             <div
                                 className="connection-port port-top"
+                                style={getPortStyles().top}
                                 onClick={(e) => handlePortClick(e, "top")}
                                 onMouseDown={(e) =>
                                     handlePortMouseDown(e, "top")
@@ -403,6 +593,7 @@ const FlowchartNode = ({
                             {/* Right Port */}
                             <div
                                 className="connection-port port-right"
+                                style={getPortStyles().right}
                                 onClick={(e) => handlePortClick(e, "right")}
                                 onMouseDown={(e) =>
                                     handlePortMouseDown(e, "right")
@@ -412,6 +603,7 @@ const FlowchartNode = ({
                             {/* Bottom Port */}
                             <div
                                 className="connection-port port-bottom"
+                                style={getPortStyles().bottom}
                                 onClick={(e) => handlePortClick(e, "bottom")}
                                 onMouseDown={(e) =>
                                     handlePortMouseDown(e, "bottom")
@@ -421,6 +613,7 @@ const FlowchartNode = ({
                             {/* Left Port */}
                             <div
                                 className="connection-port port-left"
+                                style={getPortStyles().left}
                                 onClick={(e) => handlePortClick(e, "left")}
                                 onMouseDown={(e) =>
                                     handlePortMouseDown(e, "left")
@@ -693,7 +886,26 @@ const FlowchartNode = ({
                                 }}
                             />
                         ) : (
-                            <span>{node.text}</span>
+                            <div
+                                style={{
+                                    width: "100%",
+                                    height: "100%",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    fontSize: "12px",
+                                    lineHeight: "1.2",
+                                    wordBreak:
+                                        "break-all" /* Force long words to break */,
+                                    wordWrap: "break-word",
+                                    overflowWrap:
+                                        "anywhere" /* Modern property for aggressive word wrapping */,
+                                    hyphens: "auto",
+                                    textAlign: "center",
+                                }}
+                            >
+                                {node.text}
+                            </div>
                         )}
                     </div>
                 </div>
