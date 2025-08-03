@@ -41,6 +41,13 @@ import {
     FolderOpen,
     Link,
 } from "@mui/icons-material";
+import autocadIcon from "../assets/autocad.svg";
+import solidworksIcon from "../assets/solidworks.svg";
+import pdfIcon from "../assets/pdf_icon.svg";
+import docIcon from "../assets/doc_icon.svg";
+import excelIcon from "../assets/xls_icon.svg";
+import jpgIcon from "../assets/jpg_icon.svg";
+import pngIcon from "../assets/png_icon.svg";
 
 const FlowchartNode = ({
     node,
@@ -75,7 +82,12 @@ const FlowchartNode = ({
         if (node.type !== "connector") {
             setIsEditing(true);
             setEditText(node.text);
-            setTimeout(() => inputRef.current?.focus(), 0);
+            setTimeout(() => {
+                if (inputRef.current) {
+                    inputRef.current.focus();
+                    inputRef.current.select(); // Select all text when editing starts
+                }
+            }, 0);
         }
     };
 
@@ -85,12 +97,15 @@ const FlowchartNode = ({
     };
 
     const handleKeyPress = (e) => {
-        if (e.key === "Enter") {
+        if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+            // Ctrl+Enter or Cmd+Enter to submit
+            e.preventDefault();
             handleTextSubmit();
         } else if (e.key === "Escape") {
             setEditText(node.text);
             setIsEditing(false);
         }
+        // Allow normal Enter for new lines without preventing default
     };
 
     const handleDrag = (e, data) => {
@@ -433,19 +448,73 @@ const FlowchartNode = ({
     };
 
     const getFileIcon = (fileType) => {
+        console.log("Main getFileIcon called with fileType:", fileType); // Debug log
         switch (fileType) {
             case "pdf":
-                return <PictureAsPdf color="error" />;
+                return (
+                    <img
+                        src={pdfIcon}
+                        alt="PDF"
+                        style={{ width: 24, height: 24 }}
+                    />
+                );
             case "word":
-                return <Description color="primary" />;
+                return (
+                    <img
+                        src={docIcon}
+                        alt="Word Document"
+                        style={{ width: 24, height: 24 }}
+                    />
+                );
             case "excel":
-                return <TableChart color="success" />;
+                return (
+                    <img
+                        src={excelIcon}
+                        alt="Excel"
+                        style={{ width: 24, height: 24 }}
+                    />
+                );
+            case "png":
+                return (
+                    <img
+                        src={pngIcon}
+                        alt="PNG Image"
+                        style={{ width: 24, height: 24 }}
+                    />
+                );
+            case "jpeg":
+            case "jpg":
+                return (
+                    <img
+                        src={jpgIcon}
+                        alt="JPEG Image"
+                        style={{ width: 24, height: 24 }}
+                    />
+                );
             case "image":
-                return <Image color="info" />;
+                return (
+                    <img
+                        src={jpgIcon}
+                        alt="Image"
+                        style={{ width: 24, height: 24 }}
+                    />
+                );
             case "autocad":
-                return <Architecture style={{ color: "#ff6b35" }} />;
+                return (
+                    <img
+                        src={autocadIcon}
+                        alt="AutoCAD"
+                        style={{ width: 24, height: 24 }}
+                    />
+                );
             case "solidworks":
-                return <Engineering style={{ color: "#005cb9" }} />;
+                return (
+                    <img
+                        src={solidworksIcon}
+                        alt="SolidWorks"
+                        style={{ width: 24, height: 24 }}
+                    />
+                );
             default:
                 return <InsertDriveFile color="action" />;
         }
@@ -623,108 +692,52 @@ const FlowchartNode = ({
                         </>
                     )}
 
-                    <div className="node-content">
-                        {/* Document indicator - show if there are any documents */}
-                        {((node.documents && node.documents.length > 0) ||
-                            node.document) && (
-                            <>
-                                <IconButton
-                                    size="small"
-                                    onClick={handleDocumentClick}
-                                    title={
-                                        node.documents &&
-                                        node.documents.length > 1
-                                            ? `${node.documents.length} documents attached`
-                                            : `Click to open: ${
-                                                  (node.documents &&
-                                                      node.documents[0]
-                                                          ?.fileName) ||
-                                                  node.document?.fileName
-                                              }`
-                                    }
-                                    sx={{
-                                        position: "absolute",
-                                        bottom: -6,
-                                        left: -6,
-                                        width: 20,
-                                        height: 20,
-                                        backgroundColor: "white",
-                                        border: "1px solid #ddd",
-                                        "&:hover": {
-                                            backgroundColor: "#f3e5f5",
-                                            borderColor: "#9c27b0",
-                                        },
-                                    }}
-                                >
-                                    <AttachFile
-                                        sx={{ fontSize: 14 }}
-                                        color="secondary"
-                                    />
-                                    {/* Show multiple documents indicator */}
-                                    {node.documents &&
-                                        node.documents.length > 1 && (
-                                            <ExpandMore
-                                                sx={{
-                                                    fontSize: 8,
-                                                    position: "absolute",
-                                                    bottom: -2,
-                                                    right: -2,
-                                                    backgroundColor:
-                                                        "secondary.main",
-                                                    color: "white",
-                                                    borderRadius: "50%",
-                                                    width: 10,
-                                                    height: 10,
-                                                }}
-                                            />
-                                        )}
-                                </IconButton>
-                            </>
-                        )}
-
-                        {/* Folder links indicator - show if there are any folder links */}
-                        {node.folderLinks && node.folderLinks.length > 0 && (
-                            <>
-                                <IconButton
-                                    size="small"
-                                    onClick={handleFolderClick}
-                                    title={
-                                        node.folderLinks.length > 1
-                                            ? `${node.folderLinks.length} folders linked`
-                                            : `Click to open: ${node.folderLinks[0]?.name}`
-                                    }
-                                    sx={{
-                                        position: "absolute",
-                                        bottom: -6,
-                                        left:
-                                            (node.documents &&
-                                                node.documents.length > 0) ||
-                                            node.document
-                                                ? 16
-                                                : -6,
-                                        width: 20,
-                                        height: 20,
-                                        backgroundColor: "white",
-                                        border: "1px solid #ddd",
-                                        "&:hover": {
-                                            backgroundColor: "#e3f2fd",
-                                            borderColor: "#2196f3",
-                                        },
-                                    }}
-                                >
-                                    <Folder
-                                        sx={{ fontSize: 14 }}
-                                        color="primary"
-                                    />
-                                    {/* Show multiple folders indicator */}
-                                    {node.folderLinks.length > 1 && (
+                    {/* Document indicator - positioned outside component like edit/delete buttons */}
+                    {((node.documents && node.documents.length > 0) ||
+                        node.document) && (
+                        <>
+                            <IconButton
+                                size="small"
+                                onClick={handleDocumentClick}
+                                title={
+                                    node.documents && node.documents.length > 1
+                                        ? `${node.documents.length} documents attached`
+                                        : `Click to open: ${
+                                              (node.documents &&
+                                                  node.documents[0]
+                                                      ?.fileName) ||
+                                              node.document?.fileName
+                                          }`
+                                }
+                                sx={{
+                                    position: "absolute",
+                                    bottom: -6,
+                                    left: -6,
+                                    width: 20,
+                                    height: 20,
+                                    backgroundColor: "white",
+                                    border: "1px solid #ddd",
+                                    "&:hover": {
+                                        backgroundColor: "#f3e5f5",
+                                        borderColor: "#9c27b0",
+                                    },
+                                }}
+                            >
+                                <AttachFile
+                                    sx={{ fontSize: 14 }}
+                                    color="secondary"
+                                />
+                                {/* Show multiple documents indicator */}
+                                {node.documents &&
+                                    node.documents.length > 1 && (
                                         <ExpandMore
                                             sx={{
                                                 fontSize: 8,
                                                 position: "absolute",
                                                 bottom: -2,
                                                 right: -2,
-                                                backgroundColor: "primary.main",
+                                                backgroundColor:
+                                                    "secondary.main",
                                                 color: "white",
                                                 borderRadius: "50%",
                                                 width: 10,
@@ -732,147 +745,65 @@ const FlowchartNode = ({
                                             }}
                                         />
                                     )}
-                                </IconButton>
-                            </>
-                        )}
+                            </IconButton>
+                        </>
+                    )}
 
-                        {/* Document selection menu */}
-                        <Menu
-                            anchorEl={documentMenuAnchor}
-                            open={Boolean(documentMenuAnchor)}
-                            onClose={handleDocumentMenuClose}
-                            PaperProps={{
-                                sx: { maxWidth: 300, maxHeight: 300 },
-                            }}
-                        >
-                            {node.documents &&
-                                node.documents.map((doc, index) => (
-                                    <MenuItem
-                                        key={doc.id}
-                                        onClick={() =>
-                                            handleDocumentMenuItemClick(doc)
-                                        }
-                                        sx={{ py: 1 }}
-                                    >
-                                        <ListItemIcon sx={{ minWidth: 36 }}>
-                                            {getFileIcon(doc.fileType)}
-                                        </ListItemIcon>
-                                        <ListItemText
-                                            primary={doc.fileName}
-                                            secondary={`${doc.fileType.toUpperCase()} • ${formatFileSize(
-                                                doc.fileSize
-                                            )}`}
-                                            sx={{
-                                                "& .MuiListItemText-primary": {
-                                                    fontSize: "0.875rem",
-                                                    overflow: "hidden",
-                                                    textOverflow: "ellipsis",
-                                                    whiteSpace: "nowrap",
-                                                },
-                                                "& .MuiListItemText-secondary":
-                                                    {
-                                                        fontSize: "0.75rem",
-                                                    },
-                                            }}
-                                        />
-                                    </MenuItem>
-                                ))}
-                            {/* Show legacy document if it exists */}
-                            {node.document &&
-                                (!node.documents ||
-                                    !node.documents.find(
-                                        (doc) => doc.id === node.document.id
-                                    )) && (
-                                    <>
-                                        {node.documents &&
-                                            node.documents.length > 0 && (
-                                                <Divider />
-                                            )}
-                                        <MenuItem
-                                            onClick={() =>
-                                                handleDocumentMenuItemClick(
-                                                    node.document
-                                                )
-                                            }
-                                            sx={{ py: 1 }}
-                                        >
-                                            <ListItemIcon sx={{ minWidth: 36 }}>
-                                                <PictureAsPdf color="error" />
-                                            </ListItemIcon>
-                                            <ListItemText
-                                                primary={node.document.fileName}
-                                                secondary="Legacy Document"
-                                                sx={{
-                                                    "& .MuiListItemText-primary":
-                                                        {
-                                                            fontSize:
-                                                                "0.875rem",
-                                                            overflow: "hidden",
-                                                            textOverflow:
-                                                                "ellipsis",
-                                                            whiteSpace:
-                                                                "nowrap",
-                                                        },
-                                                    "& .MuiListItemText-secondary":
-                                                        {
-                                                            fontSize: "0.75rem",
-                                                        },
-                                                }}
-                                            />
-                                        </MenuItem>
-                                    </>
+                    {/* Folder links indicator - positioned outside component like edit/delete buttons */}
+                    {node.folderLinks && node.folderLinks.length > 0 && (
+                        <>
+                            <IconButton
+                                size="small"
+                                onClick={handleFolderClick}
+                                title={
+                                    node.folderLinks.length > 1
+                                        ? `${node.folderLinks.length} folders linked`
+                                        : `Click to open: ${node.folderLinks[0]?.name}`
+                                }
+                                sx={{
+                                    position: "absolute",
+                                    bottom: -6,
+                                    left:
+                                        (node.documents &&
+                                            node.documents.length > 0) ||
+                                        node.document
+                                            ? 16
+                                            : -6,
+                                    width: 20,
+                                    height: 20,
+                                    backgroundColor: "white",
+                                    border: "1px solid #ddd",
+                                    "&:hover": {
+                                        backgroundColor: "#e3f2fd",
+                                        borderColor: "#2196f3",
+                                    },
+                                }}
+                            >
+                                <Folder sx={{ fontSize: 14 }} color="primary" />
+                                {/* Show multiple folders indicator */}
+                                {node.folderLinks.length > 1 && (
+                                    <ExpandMore
+                                        sx={{
+                                            fontSize: 8,
+                                            position: "absolute",
+                                            bottom: -2,
+                                            right: -2,
+                                            backgroundColor: "primary.main",
+                                            color: "white",
+                                            borderRadius: "50%",
+                                            width: 10,
+                                            height: 10,
+                                        }}
+                                    />
                                 )}
-                        </Menu>
+                            </IconButton>
+                        </>
+                    )}
 
-                        {/* Folder selection menu */}
-                        <Menu
-                            anchorEl={folderMenuAnchor}
-                            open={Boolean(folderMenuAnchor)}
-                            onClose={handleFolderMenuClose}
-                            PaperProps={{
-                                sx: { maxWidth: 300, maxHeight: 300 },
-                            }}
-                        >
-                            {node.folderLinks &&
-                                node.folderLinks.map((folder, index) => (
-                                    <MenuItem
-                                        key={folder.id}
-                                        onClick={() =>
-                                            handleFolderMenuItemClick(folder)
-                                        }
-                                        sx={{ py: 1 }}
-                                    >
-                                        <ListItemIcon sx={{ minWidth: 36 }}>
-                                            <Folder color="primary" />
-                                        </ListItemIcon>
-                                        <ListItemText
-                                            primary={folder.name}
-                                            secondary={folder.path}
-                                            sx={{
-                                                "& .MuiListItemText-primary": {
-                                                    fontSize: "0.875rem",
-                                                    overflow: "hidden",
-                                                    textOverflow: "ellipsis",
-                                                    whiteSpace: "nowrap",
-                                                },
-                                                "& .MuiListItemText-secondary":
-                                                    {
-                                                        fontSize: "0.75rem",
-                                                        overflow: "hidden",
-                                                        textOverflow:
-                                                            "ellipsis",
-                                                        whiteSpace: "nowrap",
-                                                    },
-                                            }}
-                                        />
-                                    </MenuItem>
-                                ))}
-                        </Menu>
-
+                    <div className="node-content">
                         {isEditing ? (
-                            <input
+                            <textarea
                                 ref={inputRef}
-                                type="text"
                                 value={editText}
                                 onChange={(e) => setEditText(e.target.value)}
                                 onBlur={handleTextSubmit}
@@ -882,8 +813,20 @@ const FlowchartNode = ({
                                     background: "transparent",
                                     textAlign: "center",
                                     width: "100%",
-                                    fontSize: "inherit",
+                                    height: "100%",
+                                    fontSize: "12px",
+                                    fontFamily: "inherit",
+                                    resize: "none",
+                                    outline: "none",
+                                    overflow: "hidden",
+                                    padding:
+                                        "2px" /* Reduced padding to match text area */,
+                                    boxSizing: "border-box",
+                                    wordBreak: "break-all",
+                                    wordWrap: "break-word",
+                                    overflowWrap: "anywhere",
                                 }}
+                                placeholder="Enter text (Ctrl+Enter to save, Esc to cancel)"
                             />
                         ) : (
                             <div
@@ -895,13 +838,12 @@ const FlowchartNode = ({
                                     justifyContent: "center",
                                     fontSize: "12px",
                                     lineHeight: "1.2",
-                                    wordBreak:
-                                        "break-all" /* Force long words to break */,
+                                    wordBreak: "break-all",
                                     wordWrap: "break-word",
-                                    overflowWrap:
-                                        "anywhere" /* Modern property for aggressive word wrapping */,
+                                    overflowWrap: "anywhere",
                                     hyphens: "auto",
                                     textAlign: "center",
+                                    whiteSpace: "pre-wrap", // Preserve line breaks and spaces
                                 }}
                             >
                                 {node.text}
@@ -910,6 +852,124 @@ const FlowchartNode = ({
                     </div>
                 </div>
             </Draggable>
+
+            {/* Document selection menu - rendered outside Draggable */}
+            <Menu
+                anchorEl={documentMenuAnchor}
+                open={Boolean(documentMenuAnchor)}
+                onClose={handleDocumentMenuClose}
+                PaperProps={{
+                    sx: { maxWidth: 300, maxHeight: 300 },
+                }}
+            >
+                {node.documents &&
+                    node.documents.map((doc, index) => (
+                        <MenuItem
+                            key={doc.id}
+                            onClick={() => handleDocumentMenuItemClick(doc)}
+                            sx={{ py: 1 }}
+                        >
+                            <ListItemIcon sx={{ minWidth: 36 }}>
+                                {getFileIcon(doc.fileType)}
+                            </ListItemIcon>
+                            <ListItemText
+                                primary={doc.fileName}
+                                secondary={`${doc.fileType.toUpperCase()} • ${formatFileSize(
+                                    doc.fileSize
+                                )}`}
+                                sx={{
+                                    "& .MuiListItemText-primary": {
+                                        fontSize: "0.875rem",
+                                        overflow: "hidden",
+                                        textOverflow: "ellipsis",
+                                        whiteSpace: "nowrap",
+                                    },
+                                    "& .MuiListItemText-secondary": {
+                                        fontSize: "0.75rem",
+                                    },
+                                }}
+                            />
+                        </MenuItem>
+                    ))}
+                {/* Show legacy document if it exists */}
+                {node.document &&
+                    (!node.documents ||
+                        !node.documents.find(
+                            (doc) => doc.id === node.document.id
+                        )) && (
+                        <>
+                            {node.documents && node.documents.length > 0 && (
+                                <Divider />
+                            )}
+                            <MenuItem
+                                onClick={() =>
+                                    handleDocumentMenuItemClick(node.document)
+                                }
+                                sx={{ py: 1 }}
+                            >
+                                <ListItemIcon sx={{ minWidth: 36 }}>
+                                    <PictureAsPdf color="error" />
+                                </ListItemIcon>
+                                <ListItemText
+                                    primary={node.document.fileName}
+                                    secondary="Legacy Document"
+                                    sx={{
+                                        "& .MuiListItemText-primary": {
+                                            fontSize: "0.875rem",
+                                            overflow: "hidden",
+                                            textOverflow: "ellipsis",
+                                            whiteSpace: "nowrap",
+                                        },
+                                        "& .MuiListItemText-secondary": {
+                                            fontSize: "0.75rem",
+                                        },
+                                    }}
+                                />
+                            </MenuItem>
+                        </>
+                    )}
+            </Menu>
+
+            {/* Folder selection menu - rendered outside Draggable */}
+            <Menu
+                anchorEl={folderMenuAnchor}
+                open={Boolean(folderMenuAnchor)}
+                onClose={handleFolderMenuClose}
+                PaperProps={{
+                    sx: { maxWidth: 300, maxHeight: 300 },
+                }}
+            >
+                {node.folderLinks &&
+                    node.folderLinks.map((folder, index) => (
+                        <MenuItem
+                            key={folder.id}
+                            onClick={() => handleFolderMenuItemClick(folder)}
+                            sx={{ py: 1 }}
+                        >
+                            <ListItemIcon sx={{ minWidth: 36 }}>
+                                <Folder color="primary" />
+                            </ListItemIcon>
+                            <ListItemText
+                                primary={folder.name}
+                                secondary={folder.path}
+                                sx={{
+                                    "& .MuiListItemText-primary": {
+                                        fontSize: "0.875rem",
+                                        overflow: "hidden",
+                                        textOverflow: "ellipsis",
+                                        whiteSpace: "nowrap",
+                                    },
+                                    "& .MuiListItemText-secondary": {
+                                        fontSize: "0.75rem",
+                                        overflow: "hidden",
+                                        textOverflow: "ellipsis",
+                                        whiteSpace: "nowrap",
+                                    },
+                                }}
+                            />
+                        </MenuItem>
+                    ))}
+            </Menu>
 
             {/* Edit Modal - rendered outside Draggable */}
             {showEditModal && (
@@ -1053,19 +1113,76 @@ const EditNodeModal = ({ node, segments, onSave, onCancel }) => {
     };
 
     const getFileIcon = (fileType) => {
+        console.log(
+            "EditNodeModal getFileIcon called with fileType:",
+            fileType
+        ); // Debug log
         switch (fileType) {
             case "pdf":
-                return <PictureAsPdf color="error" />;
+                return (
+                    <img
+                        src={pdfIcon}
+                        alt="PDF"
+                        style={{ width: 24, height: 24 }}
+                    />
+                );
             case "word":
-                return <Description color="primary" />;
+                return (
+                    <img
+                        src={docIcon}
+                        alt="Word Document"
+                        style={{ width: 24, height: 24 }}
+                    />
+                );
             case "excel":
-                return <TableChart color="success" />;
+                return (
+                    <img
+                        src={excelIcon}
+                        alt="Excel"
+                        style={{ width: 24, height: 24 }}
+                    />
+                );
+            case "png":
+                return (
+                    <img
+                        src={pngIcon}
+                        alt="PNG Image"
+                        style={{ width: 24, height: 24 }}
+                    />
+                );
+            case "jpeg":
+            case "jpg":
+                return (
+                    <img
+                        src={jpgIcon}
+                        alt="JPEG Image"
+                        style={{ width: 24, height: 24 }}
+                    />
+                );
             case "image":
-                return <Image color="info" />;
+                return (
+                    <img
+                        src={jpgIcon}
+                        alt="Image"
+                        style={{ width: 24, height: 24 }}
+                    />
+                );
             case "autocad":
-                return <Architecture style={{ color: "#ff6b35" }} />;
+                return (
+                    <img
+                        src={autocadIcon}
+                        alt="AutoCAD"
+                        style={{ width: 24, height: 24 }}
+                    />
+                );
             case "solidworks":
-                return <Engineering style={{ color: "#005cb9" }} />;
+                return (
+                    <img
+                        src={solidworksIcon}
+                        alt="SolidWorks"
+                        style={{ width: 24, height: 24 }}
+                    />
+                );
             default:
                 return <InsertDriveFile color="action" />;
         }

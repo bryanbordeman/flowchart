@@ -66,7 +66,6 @@ code {
     height: 64px;
     width: auto;
     margin-right: 15px;
-    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.1));
 }
 
 .editable-title:hover {
@@ -146,7 +145,6 @@ code {
     min-height: 60px;
     cursor: move;
     user-select: none;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -196,13 +194,13 @@ code {
     border-color: #ff99bb;
 }
 
-.flowchart-node:hover {
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
-}
-
 .flowchart-node.selected {
     border-color: #ff6b6b;
-    box-shadow: 0 0 0 2px rgba(255, 107, 107, 0.3);
+}
+
+/* Selected styling for decision nodes - target the diamond shape */
+.flowchart-node.decision.selected::before {
+    border-color: #ff6b6b !important;
 }
 
 .flowchart-node.process {
@@ -278,7 +276,7 @@ code {
     pointer-events: auto !important;
     position: relative !important;
     z-index: 15 !important;
-    padding: 12px !important; /* Extra padding for diamond shape */
+    padding: 8px !important; /* Reduced padding for diamond shape */
     box-sizing: border-box !important;
     overflow: hidden !important;
     word-break: break-all !important; /* Force long words to break */
@@ -306,9 +304,6 @@ code {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto",
         "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans",
         "Helvetica Neue", sans-serif;
-    text-shadow: 2px 2px 4px rgba(255, 255, 255, 1),
-        -1px -1px 2px rgba(255, 255, 255, 1),
-        1px -1px 2px rgba(255, 255, 255, 1), -1px 1px 2px rgba(255, 255, 255, 1);
     font-weight: bold !important;
     font-size: 14px !important;
     fill: #2c5aa0 !important;
@@ -336,7 +331,7 @@ code {
     text-align: center;
     width: 100%;
     height: 100%;
-    padding: 8px;
+    padding: 4px; /* Reduced padding for more text area */
     box-sizing: border-box;
     overflow: hidden;
     word-break: break-all; /* Force long words to break */
@@ -362,7 +357,7 @@ code {
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 8px; /* Add padding to prevent text from touching edges */
+    padding: 4px; /* Reduced padding for more text area */
     box-sizing: border-box;
     overflow: hidden; /* Prevent overflow */
     word-break: break-all; /* Force long words to break */
@@ -391,7 +386,6 @@ code {
     transform: scale(1.3);
     opacity: 1 !important;
     background-color: #0056b3;
-    box-shadow: 0 0 8px rgba(0, 123, 255, 0.5);
     cursor: grab;
 }
 
@@ -509,30 +503,27 @@ code {
 /* Connection styles */
 .flowchart-node.connecting-from {
     border-color: #28a745;
-    box-shadow: 0 0 0 3px rgba(40, 167, 69, 0.3);
     animation: pulse 1.5s infinite;
 }
 
 .flowchart-node.connection-target {
     border-color: #17a2b8;
-    box-shadow: 0 0 0 2px rgba(23, 162, 184, 0.3);
 }
 
 .flowchart-node.connection-target:hover {
     border-color: #007bff;
-    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.4);
     transform: scale(1.05);
 }
 
 @keyframes pulse {
     0% {
-        box-shadow: 0 0 0 3px rgba(40, 167, 69, 0.3);
+        border-color: #28a745;
     }
     50% {
-        box-shadow: 0 0 0 6px rgba(40, 167, 69, 0.1);
+        border-color: #40c95c;
     }
     100% {
-        box-shadow: 0 0 0 3px rgba(40, 167, 69, 0.3);
+        border-color: #28a745;
     }
 }
 
@@ -644,24 +635,22 @@ code {
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: transform 0.2s, box-shadow 0.2s;
+    transition: transform 0.2s;
     position: relative;
 }
 
 .color-option:hover {
     transform: scale(1.1);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
 .color-option.selected {
     transform: scale(1.1);
-    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.5);
+    border: 3px solid #007bff;
 }
 
 .color-option span {
     color: white;
     font-weight: bold;
-    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
 }
 
 .edit-buttons {
@@ -793,7 +782,7 @@ code {
     font-size: 10px;
     z-index: 10;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-    transition: transform 0.2s, box-shadow 0.2s, background-color 0.2s;
+    transition: transform 0.2s, background-color 0.2s;
 }
 
 .document-indicator.clickable {
@@ -803,7 +792,6 @@ code {
 .document-indicator.clickable:hover {
     transform: scale(1.1);
     background-color: #0056b3;
-    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.3);
 }
 
 .node-content {
@@ -981,7 +969,7 @@ code {
     background: white;
     padding: 20px;
     border-radius: 8px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    border: 2px solid #ddd;
 }
 
 .close-picker-btn {

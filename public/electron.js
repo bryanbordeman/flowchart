@@ -300,9 +300,6 @@ ipcMain.handle("attach-document", async (event) => {
                         "png",
                         "jpg",
                         "jpeg",
-                        "gif",
-                        "bmp",
-                        "svg",
                         "dwg",
                         "dxf",
                         "sldprt",
@@ -314,8 +311,8 @@ ipcMain.handle("attach-document", async (event) => {
                 { name: "Word Documents", extensions: ["doc", "docx"] },
                 { name: "Excel Documents", extensions: ["xls", "xlsx"] },
                 {
-                    name: "Images",
-                    extensions: ["png", "jpg", "jpeg", "gif", "bmp", "svg"],
+                    name: "Images (PNG/JPEG only)",
+                    extensions: ["png", "jpg", "jpeg"],
                 },
                 { name: "AutoCAD Files", extensions: ["dwg", "dxf"] },
                 {
@@ -361,19 +358,12 @@ ipcMain.handle("attach-document", async (event) => {
                             fileExtension === ".xls"
                                 ? "application/vnd.ms-excel"
                                 : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-                    } else if (
-                        [
-                            ".png",
-                            ".jpg",
-                            ".jpeg",
-                            ".gif",
-                            ".bmp",
-                            ".svg",
-                        ].includes(fileExtension)
-                    ) {
-                        fileType = "image";
-                        mimeType = `image/${fileExtension.slice(1)}`;
-                        if (fileExtension === ".jpg") mimeType = "image/jpeg";
+                    } else if (fileExtension === ".png") {
+                        fileType = "png";
+                        mimeType = "image/png";
+                    } else if ([".jpg", ".jpeg"].includes(fileExtension)) {
+                        fileType = "jpeg";
+                        mimeType = "image/jpeg";
                     } else if ([".dwg", ".dxf"].includes(fileExtension)) {
                         fileType = "autocad";
                         mimeType = "application/octet-stream";
