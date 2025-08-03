@@ -524,7 +524,13 @@ ipcMain.handle("open-folder", async (event, folderData) => {
     }
 });
 
-app.whenReady().then(createWindow);
+app.whenReady().then(() => {
+    // Set dock icon on macOS
+    if (process.platform === "darwin") {
+        app.dock.setIcon(path.join(__dirname, "icon.png"));
+    }
+    createWindow();
+});
 
 app.on("window-all-closed", () => {
     if (process.platform !== "darwin") {

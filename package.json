@@ -9,11 +9,11 @@
         "build": "react-scripts build",
         "test": "react-scripts test",
         "eject": "react-scripts eject",
-        "electron": "electron .",
+        "electron": "wait-on tcp:3000 && electron .",
         "electron-dev": "ELECTRON_IS_DEV=true electron .",
         "electron-pack": "npm run build && electron-builder",
         "preelectron-pack": "npm run build",
-        "dev": "./dev.sh",
+        "dev": "concurrently -k \"BROWSER=none npm start\" \"wait-on tcp:3000 && npm run electron-dev\"",
         "start-electron": "concurrently \"npm start\" \"wait-on http://localhost:3000 && ELECTRON_IS_DEV=true electron .\""
     },
     "dependencies": {
@@ -32,7 +32,7 @@
     "devDependencies": {
         "@types/react": "^18.2.0",
         "@types/react-dom": "^18.2.0",
-        "concurrently": "^8.0.0",
+        "concurrently": "^8.2.2",
         "electron": "^25.0.0",
         "electron-builder": "^24.0.0",
         "wait-on": "^7.0.1"
@@ -50,16 +50,10 @@
             "node_modules/**/*"
         ],
         "mac": {
-            "category": "public.app-category.productivity",
-            "icon": "public/icon.png"
+            "icon": "build/icons/icon_mac.icns"
         },
         "win": {
-            "target": "nsis",
-            "icon": "public/icon.png"
-        },
-        "linux": {
-            "target": "AppImage",
-            "icon": "public/icon.png"
+            "icon": "build/icons/icon.ico"
         }
     },
     "browserslist": {
