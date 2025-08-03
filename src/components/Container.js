@@ -82,7 +82,7 @@ const Container = ({
 
     const handleMouseDown = (e) => {
         e.stopPropagation();
-        onSelect(container.id);
+        onSelect(container.id, e);
 
         if (e.target.classList.contains("resize-handle")) {
             setIsResizing(true);

@@ -81,7 +81,7 @@ function App() {
             position: position,
             text: getDefaultText(type),
             segment: "default", // Default segment for new nodes
-            document: null, // Single document attachment
+            documents: [], // Multiple document attachments
         };
         setNodes((prev) => [...prev, newNode]);
         setIsDirty(true);
@@ -813,51 +813,6 @@ function App() {
                         onZoomWheel={handleZoomWheel}
                     />
 
-                    {/* Zoom slider in bottom right */}
-                    <div
-                        style={{
-                            position: "absolute",
-                            right: 24,
-                            bottom: 24,
-                            zIndex: 200,
-                        }}
-                    >
-                        <div
-                            style={{
-                                background: "#fff",
-                                borderRadius: 8,
-                                boxShadow: "0 2px 8px #0002",
-                                padding: 12,
-                                display: "flex",
-                                alignItems: "center",
-                            }}
-                        >
-                            <span style={{ marginRight: 8, fontWeight: 500 }}>
-                                Zoom
-                            </span>
-                            <input
-                                type="range"
-                                min={0.2}
-                                max={2}
-                                step={0.01}
-                                value={zoom}
-                                onChange={(e) =>
-                                    setZoom(Number(e.target.value))
-                                }
-                                style={{ width: 120 }}
-                            />
-                            <span
-                                style={{
-                                    marginLeft: 8,
-                                    minWidth: 40,
-                                    textAlign: "right",
-                                }}
-                            >
-                                {Math.round(zoom * 100)}%
-                            </span>
-                        </div>
-                    </div>
-
                     {/* Decision Connection Selector (Material UI) */}
                     <DecisionSelector
                         open={showDecisionSelector}
@@ -874,6 +829,8 @@ function App() {
                     selectedContainers={selectedContainers}
                     isDirty={isDirty}
                     isConnecting={isConnecting}
+                    zoom={zoom}
+                    onZoomChange={setZoom}
                 />
             </div>
 
@@ -895,6 +852,7 @@ function App() {
                         justifyContent: "center",
                         alignItems: "center",
                         zIndex: 10000,
+                        border: "2px solid #008093",
                     }}
                 >
                     {/* Logo */}

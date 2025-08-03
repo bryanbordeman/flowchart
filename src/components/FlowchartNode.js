@@ -17,6 +17,10 @@ import {
     MenuItem,
     FormControl,
     InputLabel,
+    Menu,
+    ListItemIcon,
+    ListItemText,
+    Divider,
 } from "@mui/material";
 import {
     AttachFile,
@@ -24,6 +28,13 @@ import {
     Visibility,
     Close,
     Edit,
+    PictureAsPdf,
+    Description,
+    TableChart,
+    Image,
+    InsertDriveFile,
+    ExpandMore,
+    Add,
 } from "@mui/icons-material";
 
 const FlowchartNode = ({
@@ -41,8 +52,9 @@ const FlowchartNode = ({
     onCompleteConnection,
 }) => {
     const [isEditing, setIsEditing] = useState(false);
-    const [editText, setEditText] = useState(node.text);
+    const [editText, setEditText] = useState("");
     const [showEditModal, setShowEditModal] = useState(false);
+    const [documentMenuAnchor, setDocumentMenuAnchor] = useState(null);
     const inputRef = useRef(null);
     const nodeRef = useRef(null);
 
@@ -123,11 +135,12 @@ const FlowchartNode = ({
         setShowEditModal(true);
     };
 
-    const handleSaveEdit = (newText, newSegment, newDocument) => {
+    const handleSaveEdit = (newText, newSegment, newDocument, newDocuments) => {
         onUpdateNode(node.id, {
             text: newText,
             segment: newSegment,
-            document: newDocument,
+            document: newDocument, // Keep for backward compatibility
+            documents: newDocuments || [], // New multi-document support
         });
         setShowEditModal(false);
     };
@@ -138,10 +151,23 @@ const FlowchartNode = ({
 
     const handleDocumentClick = async (e) => {
         e.stopPropagation();
-        if (node.document) {
+
+        const allDocuments = [...(node.documents || [])];
+        // Add legacy document if it exists and isn't already in documents
+        if (
+            node.document &&
+            !allDocuments.find((doc) => doc.id === node.document.id)
+        ) {
+            allDocuments.unshift(node.document);
+        }
+
+        if (allDocuments.length === 0) return;
+
+        if (allDocuments.length === 1) {
+            // Single document - open directly
             try {
                 const result = await window.electronAPI.openDocument(
-                    node.document
+                    allDocuments[0]
                 );
                 if (!result.success) {
                     alert(
@@ -153,7 +179,53 @@ const FlowchartNode = ({
                 console.error("Error opening document:", error);
                 alert("Failed to open document");
             }
+        } else {
+            // Multiple documents - show dropdown menu
+            setDocumentMenuAnchor(e.currentTarget);
         }
+    };
+
+    const handleDocumentMenuClose = () => {
+        setDocumentMenuAnchor(null);
+    };
+
+    const handleDocumentMenuItemClick = async (document) => {
+        setDocumentMenuAnchor(null);
+        try {
+            const result = await window.electronAPI.openDocument(document);
+            if (!result.success) {
+                alert(
+                    "Failed to open document: " +
+                        (result.error || "Unknown error")
+                );
+            }
+        } catch (error) {
+            console.error("Error opening document:", error);
+            alert("Failed to open document");
+        }
+    };
+
+    const getFileIcon = (fileType) => {
+        switch (fileType) {
+            case "pdf":
+                return <PictureAsPdf color="error" />;
+            case "word":
+                return <Description color="primary" />;
+            case "excel":
+                return <TableChart color="success" />;
+            case "image":
+                return <Image color="info" />;
+            default:
+                return <InsertDriveFile color="action" />;
+        }
+    };
+
+    const formatFileSize = (bytes) => {
+        if (bytes === 0) return "0 Bytes";
+        const k = 1024;
+        const sizes = ["Bytes", "KB", "MB", "GB"];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
     };
 
     // Dynamic styling based on connection state
@@ -292,31 +364,152 @@ const FlowchartNode = ({
                     )}
 
                     <div className="node-content">
-                        {node.document && (
-                            <IconButton
-                                size="small"
-                                onClick={handleDocumentClick}
-                                title={`Click to open: ${node.document.fileName}`}
-                                sx={{
-                                    position: "absolute",
-                                    bottom: -6,
-                                    left: -6,
-                                    width: 20,
-                                    height: 20,
-                                    backgroundColor: "white",
-                                    border: "1px solid #ddd",
-                                    "&:hover": {
-                                        backgroundColor: "#f3e5f5",
-                                        borderColor: "#9c27b0",
-                                    },
-                                }}
-                            >
-                                <AttachFile
-                                    sx={{ fontSize: 14 }}
-                                    color="secondary"
-                                />
-                            </IconButton>
+                        {/* Document indicator - show if there are any documents */}
+                        {((node.documents && node.documents.length > 0) ||
+                            node.document) && (
+                            <>
+                                <IconButton
+                                    size="small"
+                                    onClick={handleDocumentClick}
+                                    title={
+                                        node.documents &&
+                                        node.documents.length > 1
+                                            ? `${node.documents.length} documents attached`
+                                            : `Click to open: ${
+                                                  (node.documents &&
+                                                      node.documents[0]
+                                                          ?.fileName) ||
+                                                  node.document?.fileName
+                                              }`
+                                    }
+                                    sx={{
+                                        position: "absolute",
+                                        bottom: -6,
+                                        left: -6,
+                                        width: 20,
+                                        height: 20,
+                                        backgroundColor: "white",
+                                        border: "1px solid #ddd",
+                                        "&:hover": {
+                                            backgroundColor: "#f3e5f5",
+                                            borderColor: "#9c27b0",
+                                        },
+                                    }}
+                                >
+                                    <AttachFile
+                                        sx={{ fontSize: 14 }}
+                                        color="secondary"
+                                    />
+                                    {/* Show multiple documents indicator */}
+                                    {node.documents &&
+                                        node.documents.length > 1 && (
+                                            <ExpandMore
+                                                sx={{
+                                                    fontSize: 8,
+                                                    position: "absolute",
+                                                    bottom: -2,
+                                                    right: -2,
+                                                    backgroundColor:
+                                                        "secondary.main",
+                                                    color: "white",
+                                                    borderRadius: "50%",
+                                                    width: 10,
+                                                    height: 10,
+                                                }}
+                                            />
+                                        )}
+                                </IconButton>
+                            </>
                         )}
+
+                        {/* Document selection menu */}
+                        <Menu
+                            anchorEl={documentMenuAnchor}
+                            open={Boolean(documentMenuAnchor)}
+                            onClose={handleDocumentMenuClose}
+                            PaperProps={{
+                                sx: { maxWidth: 300, maxHeight: 300 },
+                            }}
+                        >
+                            {node.documents &&
+                                node.documents.map((doc, index) => (
+                                    <MenuItem
+                                        key={doc.id}
+                                        onClick={() =>
+                                            handleDocumentMenuItemClick(doc)
+                                        }
+                                        sx={{ py: 1 }}
+                                    >
+                                        <ListItemIcon sx={{ minWidth: 36 }}>
+                                            {getFileIcon(doc.fileType)}
+                                        </ListItemIcon>
+                                        <ListItemText
+                                            primary={doc.fileName}
+                                            secondary={`${doc.fileType.toUpperCase()} • ${formatFileSize(
+                                                doc.fileSize
+                                            )}`}
+                                            sx={{
+                                                "& .MuiListItemText-primary": {
+                                                    fontSize: "0.875rem",
+                                                    overflow: "hidden",
+                                                    textOverflow: "ellipsis",
+                                                    whiteSpace: "nowrap",
+                                                },
+                                                "& .MuiListItemText-secondary":
+                                                    {
+                                                        fontSize: "0.75rem",
+                                                    },
+                                            }}
+                                        />
+                                    </MenuItem>
+                                ))}
+                            {/* Show legacy document if it exists */}
+                            {node.document &&
+                                (!node.documents ||
+                                    !node.documents.find(
+                                        (doc) => doc.id === node.document.id
+                                    )) && (
+                                    <>
+                                        {node.documents &&
+                                            node.documents.length > 0 && (
+                                                <Divider />
+                                            )}
+                                        <MenuItem
+                                            onClick={() =>
+                                                handleDocumentMenuItemClick(
+                                                    node.document
+                                                )
+                                            }
+                                            sx={{ py: 1 }}
+                                        >
+                                            <ListItemIcon sx={{ minWidth: 36 }}>
+                                                <PictureAsPdf color="error" />
+                                            </ListItemIcon>
+                                            <ListItemText
+                                                primary={node.document.fileName}
+                                                secondary="Legacy Document"
+                                                sx={{
+                                                    "& .MuiListItemText-primary":
+                                                        {
+                                                            fontSize:
+                                                                "0.875rem",
+                                                            overflow: "hidden",
+                                                            textOverflow:
+                                                                "ellipsis",
+                                                            whiteSpace:
+                                                                "nowrap",
+                                                        },
+                                                    "& .MuiListItemText-secondary":
+                                                        {
+                                                            fontSize: "0.75rem",
+                                                        },
+                                                }}
+                                            />
+                                        </MenuItem>
+                                    </>
+                                )}
+                        </Menu>
+
                         {isEditing ? (
                             <input
                                 ref={inputRef}
@@ -359,37 +552,65 @@ const EditNodeModal = ({ node, segments, onSave, onCancel }) => {
     const [segment, setSegment] = useState(node.segment || "default");
     const [document, setDocument] = useState(node.document || null);
 
+    // Initialize documents with migration from legacy single document
+    const [documents, setDocuments] = useState(() => {
+        const docs = node.documents || [];
+        // If there's a legacy document that's not already in the documents array, add it
+        if (node.document && !docs.find((doc) => doc.id === node.document.id)) {
+            return [node.document, ...docs];
+        }
+        return docs;
+    });
+
+    const [documentMenuAnchor, setDocumentMenuAnchor] = useState(null);
+
     const handleSave = () => {
-        onSave(text, segment, document);
+        // Maintain backward compatibility by setting document property for legacy support
+        const primaryDocument = documents.length > 0 ? documents[0] : null;
+        onSave(text, segment, primaryDocument, documents);
     };
 
     const handleAttachDocument = async () => {
         try {
+            console.log("Starting document attachment...");
             const result = await window.electronAPI.attachDocument();
-            if (result.success) {
-                const newDocument = {
-                    id: Date.now().toString(),
-                    fileName: result.fileName,
-                    data: result.data,
-                    attachedAt: new Date().toISOString(),
-                };
-                setDocument(newDocument);
+            console.log("Attachment result:", result);
+
+            if (
+                result.success &&
+                result.documents &&
+                result.documents.length > 0
+            ) {
+                console.log(
+                    "Successfully attached documents:",
+                    result.documents
+                );
+                // Add new documents to the existing list
+                setDocuments((prev) => [...prev, ...result.documents]);
+                // For backward compatibility, also set the first document as the primary document
+                if (documents.length === 0) {
+                    setDocument(result.documents[0]);
+                }
             } else {
+                console.error("Attachment failed:", result);
                 alert(
-                    "Failed to attach document: " +
+                    "Failed to attach document(s): " +
                         (result.error || "Unknown error")
                 );
             }
         } catch (error) {
             console.error("Error attaching document:", error);
-            alert("Failed to attach document");
+            alert("Failed to attach document(s): " + error.message);
         }
     };
 
-    const handleViewDocument = async () => {
-        if (!document) return;
+    const handleViewDocument = async (documentToView = null) => {
+        const docToOpen =
+            documentToView || (documents.length > 0 ? documents[0] : document);
+        if (!docToOpen) return;
+
         try {
-            const result = await window.electronAPI.openDocument(document);
+            const result = await window.electronAPI.openDocument(docToOpen);
             if (!result.success) {
                 alert(
                     "Failed to open document: " +
@@ -402,8 +623,53 @@ const EditNodeModal = ({ node, segments, onSave, onCancel }) => {
         }
     };
 
-    const handleRemoveDocument = () => {
-        setDocument(null);
+    const handleRemoveDocument = (documentId = null) => {
+        if (documentId) {
+            // Remove specific document from the list
+            setDocuments((prev) => prev.filter((doc) => doc.id !== documentId));
+            // If removing the primary document, clear it and set a new one if available
+            if (document && document.id === documentId) {
+                const remainingDocs = documents.filter(
+                    (doc) => doc.id !== documentId
+                );
+                setDocument(remainingDocs.length > 0 ? remainingDocs[0] : null);
+            }
+        } else {
+            // Remove all documents (legacy support)
+            setDocuments([]);
+            setDocument(null);
+        }
+    };
+
+    const getFileIcon = (fileType) => {
+        switch (fileType) {
+            case "pdf":
+                return <PictureAsPdf color="error" />;
+            case "word":
+                return <Description color="primary" />;
+            case "excel":
+                return <TableChart color="success" />;
+            case "image":
+                return <Image color="info" />;
+            default:
+                return <InsertDriveFile color="action" />;
+        }
+    };
+
+    const formatFileSize = (bytes) => {
+        if (bytes === 0) return "0 Bytes";
+        const k = 1024;
+        const sizes = ["Bytes", "KB", "MB", "GB"];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+    };
+
+    const handleDocumentMenuOpen = (event) => {
+        setDocumentMenuAnchor(event.currentTarget);
+    };
+
+    const handleDocumentMenuClose = () => {
+        setDocumentMenuAnchor(null);
     };
 
     const handleKeyPress = (e) => {
@@ -431,7 +697,7 @@ const EditNodeModal = ({ node, segments, onSave, onCancel }) => {
                     alignItems: "center",
                 }}
             >
-                <Typography variant="h6">Edit Node</Typography>
+                Edit Node
                 <IconButton onClick={onCancel} size="small">
                     <Close />
                 </IconButton>
@@ -517,22 +783,25 @@ const EditNodeModal = ({ node, segments, onSave, onCancel }) => {
                         </Select>
                     </FormControl>
 
-                    {/* Document Attachment */}
+                    {/* Document Attachments */}
                     <Box>
                         <Typography variant="subtitle1" gutterBottom>
-                            Document:
+                            Documents:
                         </Typography>
-                        {!document ? (
-                            <Button
-                                variant="outlined"
-                                startIcon={<AttachFile />}
-                                onClick={handleAttachDocument}
-                                size="small"
-                                sx={{ textTransform: "none" }}
-                            >
-                                Attach PDF
-                            </Button>
-                        ) : (
+
+                        {/* Attach Documents Button */}
+                        <Button
+                            variant="outlined"
+                            startIcon={<Add />}
+                            onClick={handleAttachDocument}
+                            size="small"
+                            sx={{ textTransform: "none", mb: 2 }}
+                        >
+                            Attach Files
+                        </Button>
+
+                        {/* Display attached documents */}
+                        {documents.length > 0 && (
                             <Box
                                 sx={{
                                     display: "flex",
@@ -540,38 +809,89 @@ const EditNodeModal = ({ node, segments, onSave, onCancel }) => {
                                     gap: 1,
                                 }}
                             >
-                                <Box
-                                    sx={{
-                                        display: "flex",
-                                        alignItems: "center",
-                                        gap: 1,
-                                    }}
-                                >
-                                    <Chip
-                                        label={document.fileName}
-                                        icon={<Visibility />}
-                                        onClick={handleViewDocument}
-                                        onDelete={handleRemoveDocument}
-                                        deleteIcon={<Delete />}
-                                        variant="outlined"
-                                        color="primary"
-                                        size="small"
-                                        sx={{ maxWidth: "300px" }}
-                                    />
-                                </Box>
-                                <Button
+                                {documents.map((doc, index) => (
+                                    <Box
+                                        key={doc.id}
+                                        sx={{
+                                            display: "flex",
+                                            alignItems: "center",
+                                            gap: 1,
+                                            p: 1,
+                                            border: "1px solid #e0e0e0",
+                                            borderRadius: 1,
+                                            backgroundColor: "#fafafa",
+                                        }}
+                                    >
+                                        {getFileIcon(doc.fileType)}
+                                        <Box sx={{ flex: 1, minWidth: 0 }}>
+                                            <Typography variant="body2" noWrap>
+                                                {doc.fileName}
+                                            </Typography>
+                                            <Typography
+                                                variant="caption"
+                                                color="text.secondary"
+                                            >
+                                                {doc.fileType.toUpperCase()} •{" "}
+                                                {formatFileSize(doc.fileSize)}
+                                            </Typography>
+                                        </Box>
+                                        <IconButton
+                                            size="small"
+                                            onClick={() =>
+                                                handleViewDocument(doc)
+                                            }
+                                            sx={{ color: "primary.main" }}
+                                        >
+                                            <Visibility />
+                                        </IconButton>
+                                        <IconButton
+                                            size="small"
+                                            onClick={() =>
+                                                handleRemoveDocument(doc.id)
+                                            }
+                                            sx={{ color: "error.main" }}
+                                        >
+                                            <Delete />
+                                        </IconButton>
+                                    </Box>
+                                ))}
+                            </Box>
+                        )}
+
+                        {/* Legacy single document support - hide if we have multiple documents */}
+                        {documents.length === 0 && document && (
+                            <Box
+                                sx={{
+                                    display: "flex",
+                                    flexDirection: "column",
+                                    gap: 1,
+                                }}
+                            >
+                                <Chip
+                                    label={document.fileName}
+                                    icon={<Visibility />}
+                                    onClick={() => handleViewDocument(document)}
+                                    onDelete={() => handleRemoveDocument()}
+                                    deleteIcon={<Delete />}
                                     variant="outlined"
-                                    startIcon={<AttachFile />}
-                                    onClick={handleAttachDocument}
+                                    color="primary"
                                     size="small"
                                     sx={{
-                                        textTransform: "none",
+                                        maxWidth: "300px",
                                         alignSelf: "flex-start",
                                     }}
-                                >
-                                    Replace PDF
-                                </Button>
+                                />
                             </Box>
+                        )}
+
+                        {documents.length === 0 && !document && (
+                            <Typography
+                                variant="body2"
+                                color="text.secondary"
+                                sx={{ fontStyle: "italic" }}
+                            >
+                                No documents attached
+                            </Typography>
                         )}
                     </Box>
                 </Box>

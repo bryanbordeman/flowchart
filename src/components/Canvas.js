@@ -156,14 +156,21 @@ const Canvas = ({
 
     // Deselect node when clicking anywhere in canvas-container (outside nodes)
     const handleContainerClick = (e) => {
-        // Only deselect if the click is NOT inside a node
+        // Don't deselect during multi-select operations (Ctrl+Click)
+        if (e.ctrlKey || e.metaKey) {
+            return;
+        }
+
+        // Only deselect if the click is NOT inside a node or container
         if (
             !e.target.classList.contains("flowchart-node") &&
             !e.target.closest(".flowchart-node") &&
+            !e.target.classList.contains("flowchart-container") &&
+            !e.target.closest(".flowchart-container") &&
             !e.target.closest(".MuiIconButton-root") && // Don't deselect when clicking delete button
             !e.target.closest(".connection-port") // Don't deselect when clicking connection ports
         ) {
-            onSelectNode(null);
+            onClearAllSelections();
             if (isConnecting) {
                 onCancelConnection();
             }
@@ -207,16 +214,45 @@ const Canvas = ({
                 width: "100%",
                 height: "100%",
                 position: "relative",
-                border: isDrawingContainer ? "3px dashed #4caf50" : "none",
+                border: isDrawingContainer ? "2px dashed #2196f3" : "none",
                 borderRadius: isDrawingContainer ? "8px" : "0",
                 boxShadow: isDrawingContainer
-                    ? "inset 0 0 20px rgba(76, 175, 80, 0.1)"
+                    ? "inset 0 0 20px rgba(33, 150, 243, 0.1)"
                     : "none",
                 transition: "all 0.3s ease",
                 cursor: isDrawingContainer ? "crosshair" : "default",
+                animation: isDrawingContainer
+                    ? "borderPulse 2s infinite"
+                    : "none",
             }}
             onWheel={handleWheel}
         >
+            <style>
+                {`
+                    @keyframes borderPulse {
+                        0% {
+                            border-color: #007AFF;
+                            box-shadow: inset 0 0 20px rgba(0, 122, 255, 0.15), 0 0 0 0 rgba(0, 122, 255, 0.4);
+                        }
+                        25% {
+                            border-color: #5856D6;
+                            box-shadow: inset 0 0 25px rgba(88, 86, 214, 0.2), 0 0 0 4px rgba(88, 86, 214, 0.2);
+                        }
+                        50% {
+                            border-color: #AF52DE;
+                            box-shadow: inset 0 0 30px rgba(175, 82, 222, 0.25), 0 0 0 8px rgba(175, 82, 222, 0.15);
+                        }
+                        75% {
+                            border-color: #FF2D92;
+                            box-shadow: inset 0 0 25px rgba(255, 45, 146, 0.2), 0 0 0 4px rgba(255, 45, 146, 0.2);
+                        }
+                        100% {
+                            border-color: #007AFF;
+                            box-shadow: inset 0 0 20px rgba(0, 122, 255, 0.15), 0 0 0 0 rgba(0, 122, 255, 0.4);
+                        }
+                    }
+                `}
+            </style>
             <div
                 ref={canvasRef}
                 className="canvas"
@@ -525,15 +561,27 @@ const Canvas = ({
                             pointerEvents: "none",
                         }}
                     >
-                        <div>
-                            📊 Drag components from the sidebar to create your
-                            flowchart
+                        <div
+                            style={{
+                                fontSize: "24px",
+                                fontWeight: 500,
+                                marginBottom: "12px",
+                                color: "#666",
+                            }}
+                        >
+                            📊 Welcome to Workflow Navigator
                         </div>
-                        <div style={{ fontSize: "14px", marginTop: "10px" }}>
-                            • Drag flowchart symbols from sidebar to canvas
-                            <br />
-                            • Drag from connection ports to create arrows
-                            <br />• Hover over connections to delete them
+                        <div
+                            style={{
+                                fontSize: "16px",
+                                lineHeight: 1.6,
+                                color: "#888",
+                                maxWidth: "400px",
+                            }}
+                        >
+                            <div style={{ marginBottom: "3px" }}>
+                                • Drag flowchart symbols from sidebar to canvas
+                            </div>
                         </div>
                     </div>
                 )}

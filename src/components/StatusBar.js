@@ -8,6 +8,8 @@ const StatusBar = ({
     selectedContainers,
     isDirty,
     isConnecting,
+    zoom,
+    onZoomChange,
 }) => {
     const getSelectionInfo = () => {
         let info = [];
@@ -29,11 +31,32 @@ const StatusBar = ({
 
     return (
         <div className="status-bar">
-            <span>Nodes: {nodeCount}</span>
-            <span> | Connections: {connectionCount}</span>
-            {getSelectionInfo()}
-            {isConnecting && <span> | 🔗 Creating connection...</span>}
-            {isDirty && <span> | Modified</span>}
+            <div className="status-info">
+                <span>Nodes: {nodeCount}</span>
+                <span> | Connections: {connectionCount}</span>
+                {getSelectionInfo()}
+                {isConnecting && <span> | 🔗 Creating connection...</span>}
+                {isDirty && <span> | Modified</span>}
+            </div>
+
+            {/* Zoom controls */}
+            {zoom !== undefined && onZoomChange && (
+                <div className="zoom-controls">
+                    <span className="zoom-label">Zoom</span>
+                    <input
+                        type="range"
+                        min={0.2}
+                        max={2}
+                        step={0.01}
+                        value={zoom}
+                        onChange={(e) => onZoomChange(Number(e.target.value))}
+                        className="zoom-slider"
+                    />
+                    <span className="zoom-percentage">
+                        {Math.round(zoom * 100)}%
+                    </span>
+                </div>
+            )}
         </div>
     );
 };

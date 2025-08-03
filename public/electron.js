@@ -284,32 +284,128 @@ ipcMain.handle("open-file", async (event) => {
 
 // Handle document attachment requests
 ipcMain.handle("attach-document", async (event) => {
+    console.log("Electron: Starting document attachment dialog...");
     try {
         const result = await dialog.showOpenDialog(mainWindow, {
-            properties: ["openFile"],
-            filters: [{ name: "PDF Documents", extensions: ["pdf"] }],
+            properties: ["openFile", "multiSelections"],
+            filters: [
+                {
+                    name: "All Supported",
+                    extensions: [
+                        "pdf",
+                        "doc",
+                        "docx",
+                        "xls",
+                        "xlsx",
+                        "png",
+                        "jpg",
+                        "jpeg",
+                        "gif",
+                        "bmp",
+                        "svg",
+                    ],
+                },
+                { name: "PDF Documents", extensions: ["pdf"] },
+                { name: "Word Documents", extensions: ["doc", "docx"] },
+                { name: "Excel Documents", extensions: ["xls", "xlsx"] },
+                {
+                    name: "Images",
+                    extensions: ["png", "jpg", "jpeg", "gif", "bmp", "svg"],
+                },
+                { name: "All Files", extensions: ["*"] },
+            ],
         });
 
+        console.log("Dialog result:", result);
+
         if (!result.canceled && result.filePaths.length > 0) {
-            const filePath = result.filePaths[0];
-            const fileName = path.basename(filePath);
+            console.log("Processing files:", result.filePaths);
+            const attachedDocuments = [];
 
-            try {
-                // Read the PDF file as base64 for storage
-                const fileData = fs.readFileSync(filePath);
-                const base64Data = fileData.toString("base64");
+            for (const filePath of result.filePaths) {
+                const fileName = path.basename(filePath);
+                const fileExtension = path.extname(filePath).toLowerCase();
 
-                return {
+                try {
+                    // Read the file as base64 for storage
+                    const fileData = fs.readFileSync(filePath);
+                    const base64Data = fileData.toString("base64");
+                    const fileSize = fileData.length;
+
+                    // Determine file type and appropriate mime type
+                    let fileType = "unknown";
+                    let mimeType = "application/octet-stream";
+
+                    if ([".pdf"].includes(fileExtension)) {
+                        fileType = "pdf";
+                        mimeType = "application/pdf";
+                    } else if ([".doc", ".docx"].includes(fileExtension)) {
+                        fileType = "word";
+                        mimeType =
+                            fileExtension === ".doc"
+                                ? "application/msword"
+                                : "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+                    } else if ([".xls", ".xlsx"].includes(fileExtension)) {
+                        fileType = "excel";
+                        mimeType =
+                            fileExtension === ".xls"
+                                ? "application/vnd.ms-excel"
+                                : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+                    } else if (
+                        [
+                            ".png",
+                            ".jpg",
+                            ".jpeg",
+                            ".gif",
+                            ".bmp",
+                            ".svg",
+                        ].includes(fileExtension)
+                    ) {
+                        fileType = "image";
+                        mimeType = `image/${fileExtension.slice(1)}`;
+                        if (fileExtension === ".jpg") mimeType = "image/jpeg";
+                    }
+
+                    attachedDocuments.push({
+                        id:
+                            Date.now().toString() +
+                            "_" +
+                            Math.random().toString(36).substr(2, 9),
+                        fileName: fileName,
+                        fileType: fileType,
+                        fileExtension: fileExtension,
+                        mimeType: mimeType,
+                        fileSize: fileSize,
+                        data: base64Data,
+                        originalPath: filePath,
+                        attachedAt: new Date().toISOString(),
+                    });
+                } catch (error) {
+                    console.error(`File read error for ${fileName}:`, error);
+                    // Continue with other files even if one fails
+                }
+            }
+
+            if (attachedDocuments.length > 0) {
+                console.log(
+                    "Successfully processed documents:",
+                    attachedDocuments.length
+                );
+                const returnValue = {
                     success: true,
-                    fileName: fileName,
-                    data: base64Data,
-                    originalPath: filePath,
+                    documents: attachedDocuments,
                 };
-            } catch (error) {
-                console.error("File read error:", error);
-                return { success: false, error: error.message };
+                console.log("Returning:", returnValue);
+                return returnValue;
+            } else {
+                console.log("No documents were successfully processed");
+                return {
+                    success: false,
+                    error: "Failed to process any of the selected files",
+                };
             }
         }
+        console.log("User canceled file selection");
         return { success: false, error: "Document selection canceled" };
     } catch (error) {
         console.error("Dialog error:", error);
