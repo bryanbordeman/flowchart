@@ -3,7 +3,9 @@ const { contextBridge, ipcRenderer } = require("electron");
 // Validate channels to prevent arbitrary IPC access
 const validChannels = [
     "save-file",
+    "save-file-direct",
     "open-file",
+    "open-linked-file",
     "menu-new-file",
     "menu-open-file",
     "menu-save-file",
@@ -21,8 +23,23 @@ contextBridge.exposeInMainWorld("electronAPI", {
         }
         return ipcRenderer.invoke("save-file", data, suggestedName);
     },
+    saveFileDirect: (data, filePath) => {
+        if (typeof data !== "string") {
+            throw new Error("Data must be a string");
+        }
+        if (typeof filePath !== "string") {
+            throw new Error("File path must be a string");
+        }
+        return ipcRenderer.invoke("save-file-direct", data, filePath);
+    },
     openFile: () => {
         return ipcRenderer.invoke("open-file");
+    },
+    openLinkedFile: (filePath) => {
+        if (typeof filePath !== "string") {
+            throw new Error("File path must be a string");
+        }
+        return ipcRenderer.invoke("open-linked-file", filePath);
     },
     onMenuNewFile: (callback) => {
         if (typeof callback !== "function") {

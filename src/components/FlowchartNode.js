@@ -62,6 +62,7 @@ const FlowchartNode = ({
     onDelete,
     onStartConnection,
     onCompleteConnection,
+    onOpenLinkedFile,
 }) => {
     const [isEditing, setIsEditing] = useState(false);
     const [editText, setEditText] = useState("");
@@ -78,8 +79,20 @@ const FlowchartNode = ({
     const inputRef = useRef(null);
     const nodeRef = useRef(null);
 
-    const handleDoubleClick = () => {
+    const handleDoubleClick = (e) => {
         if (node.type !== "connector") {
+            // Ctrl+Double-click on start-end nodes with linked files opens the linked file
+            if (
+                node.type === "start-end" &&
+                node.linkedFile &&
+                (e.ctrlKey || e.metaKey)
+            ) {
+                if (onOpenLinkedFile) {
+                    onOpenLinkedFile(node.linkedFile.path);
+                }
+                return;
+            }
+
             if (isEditing) {
                 // If already editing, select all text on double-click
                 if (inputRef.current) {
@@ -339,7 +352,8 @@ const FlowchartNode = ({
         newSegment,
         newDocument,
         newDocuments,
-        newFolderLinks
+        newFolderLinks,
+        newLinkedFile
     ) => {
         onUpdateNode(node.id, {
             text: newText,
@@ -347,6 +361,7 @@ const FlowchartNode = ({
             document: newDocument, // Keep for backward compatibility
             documents: newDocuments || [], // New multi-document support
             folderLinks: newFolderLinks || [], // New folder links support
+            ...(node.type === "start-end" && { linkedFile: newLinkedFile }), // Only for start-end nodes
         });
         setShowEditModal(false);
     };
@@ -461,6 +476,22 @@ const FlowchartNode = ({
         }
     };
 
+    // Linked file handler for start-end nodes
+    const handleLinkedFileClick = async (e) => {
+        e.stopPropagation();
+
+        // Since button only shows when there's a linked file, directly open it
+        try {
+            if (onOpenLinkedFile) {
+                await onOpenLinkedFile(node.linkedFile.path);
+            } else {
+                alert("Linked file opening not available");
+            }
+        } catch (error) {
+            console.error("Error opening linked file:", error);
+            alert("Failed to open linked file: " + error.message);
+        }
+    };
     const getFileIcon = (fileType) => {
         // console.log("Main getFileIcon called with fileType:", fileType); // Debug log
         switch (fileType) {
@@ -707,23 +738,14 @@ const FlowchartNode = ({
                         </>
                     )}
 
-                    {/* Document indicator - positioned outside component like edit/delete buttons */}
-                    {((node.documents && node.documents.length > 0) ||
-                        node.document) && (
-                        <>
+                    {/* For start-end nodes, show link flowchart button only if there's a linked file */}
+                    {node.type === "start-end" &&
+                        node.linkedFile &&
+                        node.linkedFile.path && (
                             <IconButton
                                 size="small"
-                                onClick={handleDocumentClick}
-                                title={
-                                    node.documents && node.documents.length > 1
-                                        ? `${node.documents.length} documents attached`
-                                        : `Click to open: ${
-                                              (node.documents &&
-                                                  node.documents[0]
-                                                      ?.fileName) ||
-                                              node.document?.fileName
-                                          }`
-                                }
+                                onClick={handleLinkedFileClick}
+                                title={`Click to open: ${node.linkedFile.name}`}
                                 sx={{
                                     position: "absolute",
                                     bottom: -6,
@@ -738,21 +760,114 @@ const FlowchartNode = ({
                                     },
                                 }}
                             >
-                                <AttachFile
-                                    sx={{ fontSize: 14 }}
-                                    color="secondary"
-                                />
-                                {/* Show multiple documents indicator */}
-                                {node.documents &&
-                                    node.documents.length > 1 && (
+                                <Link sx={{ fontSize: 14 }} color="primary" />
+                            </IconButton>
+                        )}
+
+                    {/* For non-start-end nodes, show document indicator */}
+                    {node.type !== "start-end" &&
+                        ((node.documents && node.documents.length > 0) ||
+                            node.document) && (
+                            <>
+                                <IconButton
+                                    size="small"
+                                    onClick={handleDocumentClick}
+                                    title={
+                                        node.documents &&
+                                        node.documents.length > 1
+                                            ? `${node.documents.length} documents attached`
+                                            : `Click to open: ${
+                                                  (node.documents &&
+                                                      node.documents[0]
+                                                          ?.fileName) ||
+                                                  node.document?.fileName
+                                              }`
+                                    }
+                                    sx={{
+                                        position: "absolute",
+                                        bottom: -6,
+                                        left: -6,
+                                        width: 20,
+                                        height: 20,
+                                        backgroundColor: "white",
+                                        border: "1px solid #ddd",
+                                        "&:hover": {
+                                            backgroundColor: "#f3e5f5",
+                                            borderColor: "#9c27b0",
+                                        },
+                                    }}
+                                >
+                                    <AttachFile
+                                        sx={{ fontSize: 14 }}
+                                        color="secondary"
+                                    />
+                                    {/* Show multiple documents indicator */}
+                                    {node.documents &&
+                                        node.documents.length > 1 && (
+                                            <ExpandMore
+                                                sx={{
+                                                    fontSize: 8,
+                                                    position: "absolute",
+                                                    bottom: -2,
+                                                    right: -2,
+                                                    backgroundColor:
+                                                        "secondary.main",
+                                                    color: "white",
+                                                    borderRadius: "50%",
+                                                    width: 10,
+                                                    height: 10,
+                                                }}
+                                            />
+                                        )}
+                                </IconButton>
+                            </>
+                        )}
+
+                    {/* For non-start-end nodes, show folder links indicator */}
+                    {node.type !== "start-end" &&
+                        node.folderLinks &&
+                        node.folderLinks.length > 0 && (
+                            <>
+                                <IconButton
+                                    size="small"
+                                    onClick={handleFolderClick}
+                                    title={
+                                        node.folderLinks.length > 1
+                                            ? `${node.folderLinks.length} folders linked`
+                                            : `Click to open: ${node.folderLinks[0]?.name}`
+                                    }
+                                    sx={{
+                                        position: "absolute",
+                                        bottom: -6,
+                                        left:
+                                            (node.documents &&
+                                                node.documents.length > 0) ||
+                                            node.document
+                                                ? 16
+                                                : -6,
+                                        width: 20,
+                                        height: 20,
+                                        backgroundColor: "white",
+                                        border: "1px solid #ddd",
+                                        "&:hover": {
+                                            backgroundColor: "#e3f2fd",
+                                            borderColor: "#2196f3",
+                                        },
+                                    }}
+                                >
+                                    <Folder
+                                        sx={{ fontSize: 14 }}
+                                        color="primary"
+                                    />
+                                    {/* Show multiple folders indicator */}
+                                    {node.folderLinks.length > 1 && (
                                         <ExpandMore
                                             sx={{
                                                 fontSize: 8,
                                                 position: "absolute",
                                                 bottom: -2,
                                                 right: -2,
-                                                backgroundColor:
-                                                    "secondary.main",
+                                                backgroundColor: "primary.main",
                                                 color: "white",
                                                 borderRadius: "50%",
                                                 width: 10,
@@ -760,60 +875,9 @@ const FlowchartNode = ({
                                             }}
                                         />
                                     )}
-                            </IconButton>
-                        </>
-                    )}
-
-                    {/* Folder links indicator - positioned outside component like edit/delete buttons */}
-                    {node.folderLinks && node.folderLinks.length > 0 && (
-                        <>
-                            <IconButton
-                                size="small"
-                                onClick={handleFolderClick}
-                                title={
-                                    node.folderLinks.length > 1
-                                        ? `${node.folderLinks.length} folders linked`
-                                        : `Click to open: ${node.folderLinks[0]?.name}`
-                                }
-                                sx={{
-                                    position: "absolute",
-                                    bottom: -6,
-                                    left:
-                                        (node.documents &&
-                                            node.documents.length > 0) ||
-                                        node.document
-                                            ? 16
-                                            : -6,
-                                    width: 20,
-                                    height: 20,
-                                    backgroundColor: "white",
-                                    border: "1px solid #ddd",
-                                    "&:hover": {
-                                        backgroundColor: "#e3f2fd",
-                                        borderColor: "#2196f3",
-                                    },
-                                }}
-                            >
-                                <Folder sx={{ fontSize: 14 }} color="primary" />
-                                {/* Show multiple folders indicator */}
-                                {node.folderLinks.length > 1 && (
-                                    <ExpandMore
-                                        sx={{
-                                            fontSize: 8,
-                                            position: "absolute",
-                                            bottom: -2,
-                                            right: -2,
-                                            backgroundColor: "primary.main",
-                                            color: "white",
-                                            borderRadius: "50%",
-                                            width: 10,
-                                            height: 10,
-                                        }}
-                                    />
-                                )}
-                            </IconButton>
-                        </>
-                    )}
+                                </IconButton>
+                            </>
+                        )}
 
                     <div className="node-content">
                         {isEditing ? (
@@ -1017,6 +1081,7 @@ const FlowchartNode = ({
                     segments={segments}
                     onSave={handleSaveEdit}
                     onCancel={handleCancelEdit}
+                    onOpenLinkedFile={onOpenLinkedFile}
                 />
             )}
         </>
@@ -1024,10 +1089,17 @@ const FlowchartNode = ({
 };
 
 // Edit Node Modal Component
-const EditNodeModal = ({ node, segments, onSave, onCancel }) => {
+const EditNodeModal = ({
+    node,
+    segments,
+    onSave,
+    onCancel,
+    onOpenLinkedFile,
+}) => {
     const [text, setText] = useState(node.text);
     const [segment, setSegment] = useState(node.segment || "default");
     const [document, setDocument] = useState(node.document || null);
+    const [linkedFile, setLinkedFile] = useState(node.linkedFile || null);
 
     // Initialize documents with migration from legacy single document
     const [documents, setDocuments] = useState(() => {
@@ -1047,7 +1119,14 @@ const EditNodeModal = ({ node, segments, onSave, onCancel }) => {
     const handleSave = () => {
         // Maintain backward compatibility by setting document property for legacy support
         const primaryDocument = documents.length > 0 ? documents[0] : null;
-        onSave(text, segment, primaryDocument, documents, folderLinks);
+        onSave(
+            text,
+            segment,
+            primaryDocument,
+            documents,
+            folderLinks,
+            linkedFile
+        );
     };
 
     const handleAttachDocument = async () => {
@@ -1149,6 +1228,49 @@ const EditNodeModal = ({ node, segments, onSave, onCancel }) => {
         setFolderLinks((prev) =>
             prev.filter((folder) => folder.id !== folderId)
         );
+    };
+
+    // Linked file handlers for start-end nodes
+    const handleSelectLinkedFile = async () => {
+        try {
+            console.log("Starting linked file selection...");
+            if (window.electronAPI) {
+                const result = await window.electronAPI.openFile();
+                if (result.success) {
+                    setLinkedFile({
+                        path: result.filePath,
+                        name:
+                            result.filePath.split("/").pop() ||
+                            result.filePath.split("\\").pop() ||
+                            "Unknown File",
+                    });
+                } else if (result.error !== "Open canceled") {
+                    alert("Failed to select linked file: " + result.error);
+                }
+            }
+        } catch (error) {
+            console.error("Error selecting linked file:", error);
+            alert("Failed to select linked file: " + error.message);
+        }
+    };
+
+    const handleOpenLinkedFile = async () => {
+        if (linkedFile && linkedFile.path) {
+            try {
+                if (onOpenLinkedFile) {
+                    await onOpenLinkedFile(linkedFile.path);
+                } else {
+                    alert("Linked file opening not available in this context");
+                }
+            } catch (error) {
+                console.error("Error opening linked file:", error);
+                alert("Failed to open linked file: " + error.message);
+            }
+        }
+    };
+
+    const handleRemoveLinkedFile = () => {
+        setLinkedFile(null);
     };
 
     const getFileIcon = (fileType) => {
@@ -1354,199 +1476,297 @@ const EditNodeModal = ({ node, segments, onSave, onCancel }) => {
                         </Select>
                     </FormControl>
 
-                    {/* Document Attachments */}
-                    <Box>
-                        <Typography variant="subtitle1" gutterBottom>
-                            Documents:
-                        </Typography>
+                    {/* Document Attachments - Only for non-start-end nodes */}
+                    {node.type !== "start-end" && (
+                        <Box>
+                            <Typography variant="subtitle1" gutterBottom>
+                                Documents:
+                            </Typography>
 
-                        {/* Attach Documents Button */}
-                        <Button
-                            variant="outlined"
-                            startIcon={<Add />}
-                            onClick={handleAttachDocument}
-                            size="small"
-                            sx={{ textTransform: "none", mb: 2 }}
-                        >
-                            Attach Files
-                        </Button>
-
-                        {/* Display attached documents */}
-                        {documents.length > 0 && (
-                            <Box
-                                sx={{
-                                    display: "flex",
-                                    flexDirection: "column",
-                                    gap: 1,
-                                }}
+                            {/* Attach Documents Button */}
+                            <Button
+                                variant="outlined"
+                                startIcon={<Add />}
+                                onClick={handleAttachDocument}
+                                size="small"
+                                sx={{ textTransform: "none", mb: 2 }}
                             >
-                                {documents.map((doc, index) => (
-                                    <Box
-                                        key={doc.id}
-                                        sx={{
-                                            display: "flex",
-                                            alignItems: "center",
-                                            gap: 1,
-                                            p: 1,
-                                            border: "1px solid #e0e0e0",
-                                            borderRadius: 1,
-                                            backgroundColor: "#fafafa",
-                                        }}
-                                    >
-                                        {getFileIcon(doc.fileType)}
-                                        <Box sx={{ flex: 1, minWidth: 0 }}>
-                                            <Typography variant="body2" noWrap>
-                                                {doc.fileName}
-                                            </Typography>
-                                            <Typography
-                                                variant="caption"
-                                                color="text.secondary"
-                                            >
-                                                {doc.fileType.toUpperCase()} •{" "}
-                                                {formatFileSize(doc.fileSize)}
-                                            </Typography>
-                                        </Box>
-                                        <IconButton
-                                            size="small"
-                                            onClick={() =>
-                                                handleViewDocument(doc)
-                                            }
-                                            sx={{ color: "primary.main" }}
-                                        >
-                                            <Visibility />
-                                        </IconButton>
-                                        <IconButton
-                                            size="small"
-                                            onClick={() =>
-                                                handleRemoveDocument(doc.id)
-                                            }
-                                            sx={{ color: "error.main" }}
-                                        >
-                                            <Delete />
-                                        </IconButton>
-                                    </Box>
-                                ))}
-                            </Box>
-                        )}
+                                Attach Files
+                            </Button>
 
-                        {/* Legacy single document support - hide if we have multiple documents */}
-                        {documents.length === 0 && document && (
-                            <Box
-                                sx={{
-                                    display: "flex",
-                                    flexDirection: "column",
-                                    gap: 1,
-                                }}
-                            >
-                                <Chip
-                                    label={document.fileName}
-                                    icon={<Visibility />}
-                                    onClick={() => handleViewDocument(document)}
-                                    onDelete={() => handleRemoveDocument()}
-                                    deleteIcon={<Delete />}
-                                    variant="outlined"
-                                    color="primary"
-                                    size="small"
+                            {/* Display attached documents */}
+                            {documents.length > 0 && (
+                                <Box
                                     sx={{
-                                        maxWidth: "300px",
-                                        alignSelf: "flex-start",
+                                        display: "flex",
+                                        flexDirection: "column",
+                                        gap: 1,
                                     }}
-                                />
-                            </Box>
-                        )}
-
-                        {documents.length === 0 && !document && (
-                            <Typography
-                                variant="body2"
-                                color="text.secondary"
-                                sx={{ fontStyle: "italic" }}
-                            >
-                                No documents attached
-                            </Typography>
-                        )}
-                    </Box>
-
-                    {/* Folder Links */}
-                    <Box>
-                        <Typography variant="subtitle1" gutterBottom>
-                            Folder Links:
-                        </Typography>
-
-                        {/* Attach Folder Button */}
-                        <Button
-                            variant="outlined"
-                            startIcon={<Add />}
-                            onClick={handleAttachFolder}
-                            size="small"
-                            sx={{ textTransform: "none", mb: 2 }}
-                        >
-                            Add Folder Link
-                        </Button>
-
-                        {/* Display linked folders */}
-                        {folderLinks.length > 0 && (
-                            <Box
-                                sx={{
-                                    display: "flex",
-                                    flexDirection: "column",
-                                    gap: 1,
-                                }}
-                            >
-                                {folderLinks.map((folder, index) => (
-                                    <Box
-                                        key={folder.id}
-                                        sx={{
-                                            display: "flex",
-                                            alignItems: "center",
-                                            gap: 1,
-                                            p: 1,
-                                            border: "1px solid #e0e0e0",
-                                            borderRadius: 1,
-                                            backgroundColor: "#fafafa",
-                                        }}
-                                    >
-                                        <Folder color="primary" />
-                                        <Box sx={{ flex: 1, minWidth: 0 }}>
-                                            <Typography variant="body2" noWrap>
-                                                {folder.name}
-                                            </Typography>
-                                            <Typography
-                                                variant="caption"
-                                                color="text.secondary"
-                                                sx={{
-                                                    overflow: "hidden",
-                                                    textOverflow: "ellipsis",
-                                                    whiteSpace: "nowrap",
-                                                    display: "block",
-                                                }}
-                                            >
-                                                {folder.path}
-                                            </Typography>
-                                        </Box>
-                                        <IconButton
-                                            size="small"
-                                            onClick={() =>
-                                                handleRemoveFolder(folder.id)
-                                            }
-                                            sx={{ color: "error.main" }}
+                                >
+                                    {documents.map((doc, index) => (
+                                        <Box
+                                            key={doc.id}
+                                            sx={{
+                                                display: "flex",
+                                                alignItems: "center",
+                                                gap: 1,
+                                                p: 1,
+                                                border: "1px solid #e0e0e0",
+                                                borderRadius: 1,
+                                                backgroundColor: "#fafafa",
+                                            }}
                                         >
-                                            <Delete />
-                                        </IconButton>
-                                    </Box>
-                                ))}
-                            </Box>
-                        )}
+                                            {getFileIcon(doc.fileType)}
+                                            <Box sx={{ flex: 1, minWidth: 0 }}>
+                                                <Typography
+                                                    variant="body2"
+                                                    noWrap
+                                                >
+                                                    {doc.fileName}
+                                                </Typography>
+                                                <Typography
+                                                    variant="caption"
+                                                    color="text.secondary"
+                                                >
+                                                    {doc.fileType.toUpperCase()}{" "}
+                                                    •{" "}
+                                                    {formatFileSize(
+                                                        doc.fileSize
+                                                    )}
+                                                </Typography>
+                                            </Box>
+                                            <IconButton
+                                                size="small"
+                                                onClick={() =>
+                                                    handleViewDocument(doc)
+                                                }
+                                                sx={{ color: "primary.main" }}
+                                            >
+                                                <Visibility />
+                                            </IconButton>
+                                            <IconButton
+                                                size="small"
+                                                onClick={() =>
+                                                    handleRemoveDocument(doc.id)
+                                                }
+                                                sx={{ color: "error.main" }}
+                                            >
+                                                <Delete />
+                                            </IconButton>
+                                        </Box>
+                                    ))}
+                                </Box>
+                            )}
 
-                        {folderLinks.length === 0 && (
-                            <Typography
-                                variant="body2"
-                                color="text.secondary"
-                                sx={{ fontStyle: "italic" }}
-                            >
-                                No folders linked
+                            {/* Legacy single document support - hide if we have multiple documents */}
+                            {documents.length === 0 && document && (
+                                <Box
+                                    sx={{
+                                        display: "flex",
+                                        flexDirection: "column",
+                                        gap: 1,
+                                    }}
+                                >
+                                    <Chip
+                                        label={document.fileName}
+                                        icon={<Visibility />}
+                                        onClick={() =>
+                                            handleViewDocument(document)
+                                        }
+                                        onDelete={() => handleRemoveDocument()}
+                                        deleteIcon={<Delete />}
+                                        variant="outlined"
+                                        color="primary"
+                                        size="small"
+                                        sx={{
+                                            maxWidth: "300px",
+                                            alignSelf: "flex-start",
+                                        }}
+                                    />
+                                </Box>
+                            )}
+
+                            {documents.length === 0 && !document && (
+                                <Typography
+                                    variant="body2"
+                                    color="text.secondary"
+                                    sx={{ fontStyle: "italic" }}
+                                >
+                                    No documents attached
+                                </Typography>
+                            )}
+                        </Box>
+                    )}
+
+                    {/* Folder Links - Only for non-start-end nodes */}
+                    {node.type !== "start-end" && (
+                        <Box>
+                            <Typography variant="subtitle1" gutterBottom>
+                                Folder Links:
                             </Typography>
-                        )}
-                    </Box>
+
+                            {/* Attach Folder Button */}
+                            <Button
+                                variant="outlined"
+                                startIcon={<Add />}
+                                onClick={handleAttachFolder}
+                                size="small"
+                                sx={{ textTransform: "none", mb: 2 }}
+                            >
+                                Add Folder Link
+                            </Button>
+
+                            {/* Display linked folders */}
+                            {folderLinks.length > 0 && (
+                                <Box
+                                    sx={{
+                                        display: "flex",
+                                        flexDirection: "column",
+                                        gap: 1,
+                                    }}
+                                >
+                                    {folderLinks.map((folder, index) => (
+                                        <Box
+                                            key={folder.id}
+                                            sx={{
+                                                display: "flex",
+                                                alignItems: "center",
+                                                gap: 1,
+                                                p: 1,
+                                                border: "1px solid #e0e0e0",
+                                                borderRadius: 1,
+                                                backgroundColor: "#fafafa",
+                                            }}
+                                        >
+                                            <Folder color="primary" />
+                                            <Box sx={{ flex: 1, minWidth: 0 }}>
+                                                <Typography
+                                                    variant="body2"
+                                                    noWrap
+                                                >
+                                                    {folder.name}
+                                                </Typography>
+                                                <Typography
+                                                    variant="caption"
+                                                    color="text.secondary"
+                                                    sx={{
+                                                        overflow: "hidden",
+                                                        textOverflow:
+                                                            "ellipsis",
+                                                        whiteSpace: "nowrap",
+                                                        display: "block",
+                                                    }}
+                                                >
+                                                    {folder.path}
+                                                </Typography>
+                                            </Box>
+                                            <IconButton
+                                                size="small"
+                                                onClick={() =>
+                                                    handleRemoveFolder(
+                                                        folder.id
+                                                    )
+                                                }
+                                                sx={{ color: "error.main" }}
+                                            >
+                                                <Delete />
+                                            </IconButton>
+                                        </Box>
+                                    ))}
+                                </Box>
+                            )}
+
+                            {folderLinks.length === 0 && (
+                                <Typography
+                                    variant="body2"
+                                    color="text.secondary"
+                                    sx={{ fontStyle: "italic" }}
+                                >
+                                    No folders linked
+                                </Typography>
+                            )}
+                        </Box>
+                    )}
+
+                    {/* Linked Flowchart File - Only for start-end nodes */}
+                    {node.type === "start-end" && (
+                        <Box>
+                            <Typography variant="subtitle1" gutterBottom>
+                                Linked Flowchart:
+                            </Typography>
+
+                            {/* Select Linked File Button */}
+                            <Button
+                                variant="outlined"
+                                startIcon={<Link />}
+                                onClick={handleSelectLinkedFile}
+                                size="small"
+                                sx={{ textTransform: "none", mb: 2 }}
+                            >
+                                Select Flowchart File
+                            </Button>
+
+                            {/* Display linked file */}
+                            {linkedFile && (
+                                <Box
+                                    sx={{
+                                        display: "flex",
+                                        alignItems: "center",
+                                        gap: 1,
+                                        p: 1,
+                                        border: "1px solid #e0e0e0",
+                                        borderRadius: 1,
+                                        backgroundColor: "#f3e5f5", // Light purple for flowchart files
+                                    }}
+                                >
+                                    <Architecture color="primary" />
+                                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                                        <Typography variant="body2" noWrap>
+                                            {linkedFile.name}
+                                        </Typography>
+                                        <Typography
+                                            variant="caption"
+                                            color="text.secondary"
+                                            sx={{
+                                                overflow: "hidden",
+                                                textOverflow: "ellipsis",
+                                                whiteSpace: "nowrap",
+                                                display: "block",
+                                            }}
+                                        >
+                                            {linkedFile.path}
+                                        </Typography>
+                                    </Box>
+                                    <IconButton
+                                        size="small"
+                                        onClick={handleOpenLinkedFile}
+                                        sx={{ color: "primary.main" }}
+                                        title="Open linked flowchart"
+                                    >
+                                        <FolderOpen />
+                                    </IconButton>
+                                    <IconButton
+                                        size="small"
+                                        onClick={handleRemoveLinkedFile}
+                                        sx={{ color: "error.main" }}
+                                        title="Remove link"
+                                    >
+                                        <Delete />
+                                    </IconButton>
+                                </Box>
+                            )}
+
+                            {!linkedFile && (
+                                <Typography
+                                    variant="body2"
+                                    color="text.secondary"
+                                    sx={{ fontStyle: "italic" }}
+                                >
+                                    No flowchart file linked
+                                </Typography>
+                            )}
+                        </Box>
+                    )}
                 </Box>
             </DialogContent>
 

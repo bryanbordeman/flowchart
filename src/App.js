@@ -5,7 +5,38 @@ import Toolbar from "./components/Toolbar";
 import StatusBar from "./components/StatusBar";
 import DecisionSelector from "./components/DecisionSelector";
 import workflowLogo from "./assets/workflow_navigator_logo.svg";
+import {
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    DialogActions,
+    Button,
+    Typography,
+    IconButton,
+} from "@mui/material";
+import { styled } from "@mui/material/styles";
+import WarningIcon from "@mui/icons-material/Warning";
+import CloseIcon from "@mui/icons-material/Close";
 import "./App.css";
+
+const StyledDialog = styled(Dialog)(({ theme }) => ({
+    "& .MuiDialog-paper": {
+        backgroundColor: "white",
+        borderRadius: "8px",
+        padding: theme.spacing(2),
+        maxWidth: "600px",
+        width: "90%",
+    },
+    "& .MuiDialogContent-root": {
+        padding: theme.spacing(3),
+        paddingTop: theme.spacing(1),
+    },
+    "& .MuiDialogActions-root": {
+        padding: theme.spacing(2),
+        paddingTop: 0,
+        gap: theme.spacing(1.5),
+    },
+}));
 
 function App() {
     // Loading state
@@ -59,6 +90,11 @@ function App() {
     const [connectingFrom, setConnectingFrom] = useState(null);
     const [showDecisionSelector, setShowDecisionSelector] = useState(false);
     const [pendingConnection, setPendingConnection] = useState(null);
+
+    // Unsaved changes dialog state
+    const [showUnsavedDialog, setShowUnsavedDialog] = useState(false);
+    const [unsavedDialogAction, setUnsavedDialogAction] = useState(null);
+
     const [segments, setSegments] = useState([
         { id: "default", name: "Default", color: "#FFFFFF" },
         { id: "sales", name: "Sales", color: "#C8E6C9" },
@@ -180,6 +216,7 @@ function App() {
                 text: getDefaultText(type),
                 segment: "default", // Default segment for new nodes
                 documents: [], // Multiple document attachments
+                ...(type === "start-end" && { linkedFile: null }), // Add linked file property for start-end nodes
             };
             setNodes((prev) => [...prev, newNode]);
             setIsDirty(true);
@@ -770,10 +807,40 @@ function App() {
     // Load file dialog
     const loadFileDialog = useCallback(async () => {
         if (isDirty) {
-            const result = window.confirm(
-                "You have unsaved changes. Load file anyway?"
-            );
-            if (!result) return;
+            // Show custom dialog for load file
+            setUnsavedDialogAction(() => async () => {
+                if (window.electronAPI) {
+                    try {
+                        const result = await window.electronAPI.openFile();
+                        if (result.success) {
+                            loadFile(result.data);
+                            setCurrentFile(result.filePath);
+                        } else if (result.error !== "Open canceled") {
+                            alert("Error opening file: " + result.error);
+                        }
+                    } catch (error) {
+                        alert("Error opening file: " + error.message);
+                    }
+                } else {
+                    // Web fallback - file input
+                    const input = document.createElement("input");
+                    input.type = "file";
+                    input.accept = ".flowchart,.json";
+                    input.onchange = (e) => {
+                        const file = e.target.files[0];
+                        if (file) {
+                            const reader = new FileReader();
+                            reader.onload = (event) => {
+                                loadFile(event.target.result);
+                            };
+                            reader.readAsText(file);
+                        }
+                    };
+                    input.click();
+                }
+            });
+            setShowUnsavedDialog(true);
+            return;
         }
 
         if (window.electronAPI) {
@@ -807,25 +874,130 @@ function App() {
         }
     }, [isDirty, loadFile]);
 
+    // Open linked flowchart file
+    const openLinkedFile = useCallback(
+        async (filePath) => {
+            if (window.electronAPI) {
+                try {
+                    const result = await window.electronAPI.openLinkedFile(
+                        filePath
+                    );
+                    if (result.success) {
+                        if (isDirty) {
+                            // Show custom dialog instead of window.confirm
+                            setUnsavedDialogAction(() => () => {
+                                loadFile(result.data);
+                                setCurrentFile(filePath);
+                            });
+                            setShowUnsavedDialog(true);
+                            return;
+                        }
+                        loadFile(result.data);
+                        setCurrentFile(filePath);
+                    } else {
+                        alert("Error opening linked file: " + result.error);
+                    }
+                } catch (error) {
+                    alert("Error opening linked file: " + error.message);
+                }
+            }
+        },
+        [isDirty, loadFile]
+    );
+
+    // Handle unsaved changes dialog actions
+    const handleSaveAndContinue = useCallback(async () => {
+        if (window.electronAPI) {
+            try {
+                const data = JSON.stringify(
+                    {
+                        nodes,
+                        connections,
+                        segments,
+                        containers,
+                        title,
+                    },
+                    null,
+                    2
+                );
+
+                let result;
+                if (currentFile) {
+                    // Save directly to existing file without dialog
+                    result = await window.electronAPI.saveFileDirect(
+                        data,
+                        currentFile
+                    );
+                } else {
+                    // Show save dialog for new files
+                    result = await window.electronAPI.saveFile(
+                        data,
+                        "untitled.flowchart"
+                    );
+                }
+
+                if (result.success) {
+                    setCurrentFile(result.filePath);
+                    setIsDirty(false);
+                    // Execute the pending action
+                    if (unsavedDialogAction) {
+                        unsavedDialogAction();
+                    }
+                } else {
+                    alert("Error saving file: " + result.error);
+                    return;
+                }
+            } catch (error) {
+                alert("Error saving file: " + error.message);
+                return;
+            }
+        }
+        setShowUnsavedDialog(false);
+        setUnsavedDialogAction(null);
+    }, [
+        nodes,
+        connections,
+        segments,
+        containers,
+        title,
+        currentFile,
+        unsavedDialogAction,
+    ]);
+
+    const handleContinueWithoutSaving = useCallback(() => {
+        if (unsavedDialogAction) {
+            unsavedDialogAction();
+        }
+        setShowUnsavedDialog(false);
+        setUnsavedDialogAction(null);
+    }, [unsavedDialogAction]);
+
+    const handleCancelAction = useCallback(() => {
+        setShowUnsavedDialog(false);
+        setUnsavedDialogAction(null);
+    }, []);
+
     // Set up Electron menu handlers
     useEffect(() => {
         if (window.electronAPI) {
             window.electronAPI.onMenuNewFile(() => {
                 if (isDirty) {
-                    const result = window.confirm(
-                        "You have unsaved changes. Create new file anyway?"
-                    );
-                    if (!result) return;
+                    setUnsavedDialogAction(() => () => {
+                        clearCanvas();
+                    });
+                    setShowUnsavedDialog(true);
+                    return;
                 }
                 clearCanvas();
             });
 
             window.electronAPI.onMenuOpenFile((event, data) => {
                 if (isDirty) {
-                    const result = window.confirm(
-                        "You have unsaved changes. Open file anyway?"
-                    );
-                    if (!result) return;
+                    setUnsavedDialogAction(() => () => {
+                        loadFile(data);
+                    });
+                    setShowUnsavedDialog(true);
+                    return;
                 }
                 loadFile(data);
             });
@@ -1002,6 +1174,7 @@ function App() {
                         onSelectContainer={selectContainer}
                         onStartDrawingContainer={startDrawingContainer}
                         onStopDrawingContainer={stopDrawingContainer}
+                        onOpenLinkedFile={openLinkedFile}
                         zoom={zoom}
                         onZoomWheel={handleZoomWheel}
                     />
@@ -1086,6 +1259,101 @@ function App() {
                     </div>
                 </div>
             )}
+
+            {/* Unsaved Changes Dialog */}
+            <StyledDialog
+                open={showUnsavedDialog}
+                onClose={handleCancelAction}
+                maxWidth="xs"
+                fullWidth
+                aria-labelledby="unsaved-changes-dialog-title"
+            >
+                <DialogTitle
+                    id="unsaved-changes-dialog-title"
+                    sx={{
+                        color: "#333",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 2,
+                        pb: 1,
+                    }}
+                >
+                    <WarningIcon
+                        sx={{
+                            color: "#4fc3f7",
+                            fontSize: "28px",
+                        }}
+                    />
+                    Unsaved Changes
+                    <IconButton
+                        aria-label="close"
+                        onClick={handleCancelAction}
+                        sx={{
+                            position: "absolute",
+                            right: 8,
+                            top: 8,
+                            color: "#666",
+                        }}
+                    >
+                        <CloseIcon />
+                    </IconButton>
+                </DialogTitle>
+                <DialogContent>
+                    <Typography
+                        sx={{
+                            color: "#333",
+                            fontSize: "16px",
+                            lineHeight: 1.5,
+                            textAlign: "center",
+                        }}
+                    >
+                        You have unsaved changes. Save before continuing?
+                    </Typography>
+                </DialogContent>{" "}
+                <DialogActions>
+                    <Button
+                        onClick={handleCancelAction}
+                        variant="outlined"
+                        sx={{
+                            flex: 1,
+                            color: "#666",
+                            borderColor: "#ccc",
+                            "&:hover": {
+                                borderColor: "#999",
+                                backgroundColor: "rgba(0, 0, 0, 0.04)",
+                            },
+                        }}
+                    >
+                        Cancel
+                    </Button>
+                    <Button
+                        onClick={handleContinueWithoutSaving}
+                        variant="contained"
+                        sx={{
+                            flex: 1,
+                            backgroundColor: "#f44336",
+                            "&:hover": {
+                                backgroundColor: "#d32f2f",
+                            },
+                        }}
+                    >
+                        Don't Save
+                    </Button>
+                    <Button
+                        onClick={handleSaveAndContinue}
+                        variant="contained"
+                        sx={{
+                            flex: 1,
+                            backgroundColor: "#4fc3f7",
+                            "&:hover": {
+                                backgroundColor: "#29b6f6",
+                            },
+                        }}
+                    >
+                        Save & Continue
+                    </Button>
+                </DialogActions>
+            </StyledDialog>
         </>
     );
 }

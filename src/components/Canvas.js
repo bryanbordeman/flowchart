@@ -36,6 +36,7 @@ const Canvas = ({
     onSelectContainer,
     onStartDrawingContainer,
     onStopDrawingContainer,
+    onOpenLinkedFile,
     zoom,
     onZoomWheel,
 }) => {
@@ -410,6 +411,7 @@ const Canvas = ({
                         onDelete={onDeleteNode}
                         onStartConnection={onStartConnection}
                         onCompleteConnection={onCompleteConnection}
+                        onOpenLinkedFile={onOpenLinkedFile}
                     />
                 ))}
                 {/* SVG overlay for decision labels - rendered above nodes */}

@@ -1,8 +1,9 @@
 {
-    "name": "flowchart-app",
+    "name": "workflow-navigator",
     "version": "1.0.0",
-    "description": "A flowchart application built with Electron and React",
+    "description": "Albatross Projects workflow navigator application",
     "main": "public/electron.js",
+    "homepage": "./",
     "private": true,
     "scripts": {
         "start": "react-scripts start",
@@ -14,7 +15,8 @@
         "electron-pack": "npm run build && electron-builder",
         "preelectron-pack": "npm run build",
         "dev": "concurrently -k \"BROWSER=none npm start\" \"wait-on tcp:3000 && npm run electron-dev\"",
-        "start-electron": "concurrently \"npm start\" \"wait-on http://localhost:3000 && ELECTRON_IS_DEV=true electron .\""
+        "start-electron": "concurrently \"npm start\" \"wait-on http://localhost:3000 && ELECTRON_IS_DEV=true electron .\"",
+        "dist": "npm run build && electron-builder --publish=never"
     },
     "dependencies": {
         "@emotion/react": "^11.14.0",
@@ -38,22 +40,66 @@
         "wait-on": "^7.0.1"
     },
     "build": {
-        "appId": "com.flowchart.app",
-        "productName": "Flowchart App",
+        "appId": "com.albatrossprojects.workflow-navigator",
+        "productName": "Workflow Navigator",
         "directories": {
             "output": "dist"
         },
         "files": [
             "build/**/*",
             "public/electron.js",
+            "public/preload.js",
             "public/icon.png",
-            "node_modules/**/*"
+            "public/icon.ico"
+        ],
+        "extraResources": [
+            {
+                "from": "public/icon.png",
+                "to": "icon.png"
+            },
+            {
+                "from": "public/icon.ico",
+                "to": "icon.ico"
+            }
         ],
         "mac": {
-            "icon": "build/icons/icon_mac.icns"
+            "icon": "public/icon.png",
+            "category": "public.app-category.productivity",
+            "target": [
+                {
+                    "target": "dmg",
+                    "arch": [
+                        "x64",
+                        "arm64"
+                    ]
+                }
+            ]
         },
         "win": {
-            "icon": "build/icons/icon.ico"
+            "icon": "public/icon.ico",
+            "target": [
+                {
+                    "target": "nsis",
+                    "arch": [
+                        "x64"
+                    ]
+                }
+            ]
+        },
+        "linux": {
+            "icon": "public/icon.png",
+            "target": [
+                {
+                    "target": "AppImage",
+                    "arch": [
+                        "x64"
+                    ]
+                }
+            ]
+        },
+        "nsis": {
+            "oneClick": false,
+            "allowToChangeInstallationDirectory": true
         }
     },
     "browserslist": {

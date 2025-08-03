@@ -45,6 +45,8 @@ function createWindow() {
 
     console.log("isDev:", isDev);
     console.log("Loading URL:", startUrl);
+    console.log("__dirname:", __dirname);
+    console.log("Resolved path:", path.join(__dirname, "../build/index.html"));
 
     mainWindow.loadURL(startUrl).catch((err) => {
         console.error("Failed to load URL:", err);
@@ -279,6 +281,71 @@ ipcMain.handle("open-file", async (event) => {
     } catch (error) {
         console.error("Dialog error:", error);
         return { success: false, error: "Failed to open file dialog" };
+    }
+});
+
+// Handle saving to existing file without dialog
+ipcMain.handle("save-file-direct", async (event, data, filePath) => {
+    try {
+        // Validate input
+        if (typeof data !== "string") {
+            return { success: false, error: "Invalid data format" };
+        }
+
+        if (!filePath || typeof filePath !== "string") {
+            return { success: false, error: "Invalid file path" };
+        }
+
+        try {
+            // Validate JSON before saving
+            JSON.parse(data);
+            fs.writeFileSync(filePath, data, "utf8");
+            return { success: true, filePath: filePath };
+        } catch (error) {
+            console.error("File save error:", error);
+            return { success: false, error: error.message };
+        }
+    } catch (error) {
+        console.error("Direct save error:", error);
+        return { success: false, error: "Failed to save file directly" };
+    }
+});
+
+// Handle opening a specific linked file
+ipcMain.handle("open-linked-file", async (event, filePath) => {
+    try {
+        if (!filePath || typeof filePath !== "string") {
+            return { success: false, error: "Invalid file path" };
+        }
+
+        // Check if file exists
+        if (!fs.existsSync(filePath)) {
+            return {
+                success: false,
+                error: "Linked file not found: " + filePath,
+            };
+        }
+
+        try {
+            const data = fs.readFileSync(filePath, "utf-8");
+            return {
+                success: true,
+                data: data,
+                filePath: filePath,
+            };
+        } catch (error) {
+            console.error("Linked file read error:", error);
+            return {
+                success: false,
+                error: "Failed to read linked file: " + error.message,
+            };
+        }
+    } catch (error) {
+        console.error("Linked file open error:", error);
+        return {
+            success: false,
+            error: "Failed to open linked file: " + error.message,
+        };
     }
 });
 
