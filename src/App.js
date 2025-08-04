@@ -137,21 +137,7 @@ function App() {
     const [showLoadingModal, setShowLoadingModal] = useState(true);
     const [loadingFadeOut, setLoadingFadeOut] = useState(false);
 
-    // Hide loading modal after 3 seconds with fade out
-    useEffect(() => {
-        const fadeOutTimer = setTimeout(() => {
-            setLoadingFadeOut(true);
-        }, 2500); // Start fade out at 2.5s
-
-        const hideTimer = setTimeout(() => {
-            setShowLoadingModal(false);
-        }, 3000); // Complete hide at 3s
-
-        return () => {
-            clearTimeout(fadeOutTimer);
-            clearTimeout(hideTimer);
-        };
-    }, []);
+    // No automatic fade out - only when user clicks a button
 
     // Zoom state
     const [zoom, setZoom] = useState(1);
@@ -899,46 +885,57 @@ function App() {
     // Handle start modal button actions
     const handleStartModalAction = useCallback(
         async (action) => {
-            setLoadingFadeOut(true);
-
-            // Wait for fade out animation to complete
-            setTimeout(async () => {
-                setShowLoadingModal(false);
-
-                if (action === "load") {
-                    // Trigger load file dialog
-                    if (window.electronAPI) {
-                        try {
-                            const result = await window.electronAPI.openFile();
-                            if (result.success) {
-                                loadFile(result.data);
-                                setCurrentFile(result.filePath);
-                            } else if (result.error !== "Open canceled") {
-                                alert("Error opening file: " + result.error);
-                            }
-                        } catch (error) {
-                            alert("Error opening file: " + error.message);
+            if (action === "new") {
+                // For new, immediately fade out and close modal
+                setLoadingFadeOut(true);
+                setTimeout(() => {
+                    setShowLoadingModal(false);
+                }, 500);
+            } else if (action === "load") {
+                // For load, open file dialog immediately without any delays
+                if (window.electronAPI) {
+                    try {
+                        const result = await window.electronAPI.openFile();
+                        if (result.success) {
+                            // File was selected successfully, now fade out
+                            setLoadingFadeOut(true);
+                            // Load file immediately and close modal after fade
+                            loadFile(result.data);
+                            setCurrentFile(result.filePath);
+                            setTimeout(() => {
+                                setShowLoadingModal(false);
+                            }, 500);
+                        } else if (result.error !== "Open canceled") {
+                            alert("Error opening file: " + result.error);
                         }
-                    } else {
-                        // Web fallback - file input
-                        const input = document.createElement("input");
-                        input.type = "file";
-                        input.accept = ".wfn,.flowchart,.json";
-                        input.onchange = (e) => {
-                            const file = e.target.files[0];
-                            if (file) {
-                                const reader = new FileReader();
-                                reader.onload = (event) => {
-                                    loadFile(event.target.result);
-                                };
-                                reader.readAsText(file);
-                            }
-                        };
-                        input.click();
+                        // If user canceled (Open canceled), modal stays visible
+                    } catch (error) {
+                        alert("Error opening file: " + error.message);
                     }
+                } else {
+                    // Web fallback - file input
+                    const input = document.createElement("input");
+                    input.type = "file";
+                    input.accept = ".wfn,.flowchart,.json";
+                    input.onchange = (e) => {
+                        const file = e.target.files[0];
+                        if (file) {
+                            // File was selected successfully, now fade out
+                            setLoadingFadeOut(true);
+                            const reader = new FileReader();
+                            reader.onload = (event) => {
+                                loadFile(event.target.result);
+                            };
+                            reader.readAsText(file);
+                            setTimeout(() => {
+                                setShowLoadingModal(false);
+                            }, 500);
+                        }
+                        // If no file selected, modal stays visible
+                    };
+                    input.click();
                 }
-                // If action is 'new', just close the modal (default empty state)
-            }, 500); // Match the fade out transition duration
+            }
         },
         [loadFile]
     );
@@ -1435,8 +1432,8 @@ function App() {
                         <div
                             style={{
                                 position: "absolute",
-                                bottom: "20px",
-                                right: "20px",
+                                bottom: "10px",
+                                left: "20px",
                                 textAlign: "right",
                                 color: theme.palette.text.secondary,
                                 fontSize: "13px",
@@ -1449,8 +1446,20 @@ function App() {
                                     marginBottom: "4px",
                                 }}
                             >
-                                Created by: Bryan Bordeman
+                                Author: Bryan Bordeman
                             </div>
+                        </div>
+                        <div
+                            style={{
+                                position: "absolute",
+                                bottom: "10px",
+                                right: "20px",
+                                textAlign: "right",
+                                color: theme.palette.text.secondary,
+                                fontSize: "13px",
+                                lineHeight: "1.4",
+                            }}
+                        >
                             <div style={{ fontSize: "11px", opacity: 0.8 }}>
                                 Version 1.0.0
                             </div>
