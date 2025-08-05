@@ -9,7 +9,15 @@ import {
     IconButton,
     Tooltip,
 } from "@mui/material";
-import { Description, FolderOpen, Save, Undo, Redo } from "@mui/icons-material";
+import {
+    Description,
+    FolderOpen,
+    Save,
+    Undo,
+    Redo,
+    Lock,
+    LockOpen,
+} from "@mui/icons-material";
 import logo from "../assets/workflow_navigator_logo.svg";
 
 const Toolbar = ({
@@ -24,6 +32,8 @@ const Toolbar = ({
     onRedo,
     canUndo,
     canRedo,
+    isLocked,
+    onToggleLock,
 }) => {
     const [isEditingTitle, setIsEditingTitle] = useState(false);
     const [editTitle, setEditTitle] = useState(title || "Untitled");
@@ -140,6 +150,33 @@ const Toolbar = ({
                             <Redo />
                         </IconButton>
                     </span>
+                </Tooltip>
+
+                {/* Lock Button */}
+                <Tooltip
+                    title={
+                        isLocked
+                            ? "Unlock Canvas (Ctrl+L)"
+                            : "Lock Canvas (Ctrl+L)"
+                    }
+                >
+                    <IconButton
+                        onClick={onToggleLock}
+                        size="small"
+                        sx={{
+                            color: isLocked ? "error.main" : "primary.main",
+                            backgroundColor: isLocked
+                                ? "rgba(244, 67, 54, 0.1)"
+                                : "transparent",
+                            "&:hover": {
+                                backgroundColor: isLocked
+                                    ? "rgba(244, 67, 54, 0.2)"
+                                    : "rgba(0, 128, 147, 0.1)",
+                            },
+                        }}
+                    >
+                        {isLocked ? <Lock /> : <LockOpen />}
+                    </IconButton>
                 </Tooltip>
 
                 <Box

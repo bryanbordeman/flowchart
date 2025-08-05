@@ -19,6 +19,7 @@ import {
 import { styled } from "@mui/material/styles";
 import WarningIcon from "@mui/icons-material/Warning";
 import CloseIcon from "@mui/icons-material/Close";
+import LockIcon from "@mui/icons-material/Lock";
 import "./App.css";
 
 // Create custom theme with company colors
@@ -139,6 +140,9 @@ function App() {
 
     // No automatic fade out - only when user clicks a button
 
+    // Lock state - prevents moving/editing when locked
+    const [isLocked, setIsLocked] = useState(false);
+
     // Zoom state
     const [zoom, setZoom] = useState(1);
 
@@ -200,6 +204,7 @@ function App() {
                 containers: [],
                 segments: segments,
                 title: "",
+                isLocked: false,
                 timestamp: Date.now(),
             };
             setHistory([initialState]);
@@ -218,6 +223,7 @@ function App() {
             containers: [...containers],
             segments: [...segments],
             title: title,
+            isLocked: isLocked,
             timestamp: Date.now(),
         };
 
@@ -244,6 +250,7 @@ function App() {
         containers,
         segments,
         title,
+        isLocked,
         historyIndex,
         maxHistorySize,
     ]);
@@ -258,6 +265,7 @@ function App() {
                 setContainers(state.containers);
                 setSegments(state.segments);
                 setTitle(state.title);
+                setIsLocked(state.isLocked || false);
                 setHistoryIndex(stateIndex);
                 setIsDirty(true);
 
@@ -288,6 +296,7 @@ function App() {
     // Add a new node to the canvas
     const addNode = useCallback(
         (type, position) => {
+            if (isLocked) return; // Prevent adding nodes when locked
             saveToHistory(); // Save state before making changes
             const newNode = {
                 id: generateId(),
@@ -301,7 +310,7 @@ function App() {
             setNodes((prev) => [...prev, newNode]);
             setIsDirty(true);
         },
-        [saveToHistory]
+        [saveToHistory, isLocked]
     ); // Get default text for node types
     const getDefaultText = (type) => {
         switch (type) {
@@ -323,6 +332,7 @@ function App() {
     // Update node position
     const updateNodePosition = useCallback(
         (id, newPosition) => {
+            if (isLocked) return; // Prevent moving nodes when locked
             saveToHistory(); // Save state before making changes
             setNodes((prev) =>
                 prev.map((node) =>
@@ -331,12 +341,13 @@ function App() {
             );
             setIsDirty(true);
         },
-        [saveToHistory]
+        [saveToHistory, isLocked]
     );
 
     // Update multiple node positions (for group movement)
     const updateMultipleNodePositions = useCallback(
         (updates) => {
+            if (isLocked) return; // Prevent moving nodes when locked
             saveToHistory(); // Save state before making changes
             setNodes((prev) =>
                 prev.map((node) => {
@@ -348,12 +359,13 @@ function App() {
             );
             setIsDirty(true);
         },
-        [saveToHistory]
+        [saveToHistory, isLocked]
     );
 
     // Update container position
     const updateContainerPosition = useCallback(
         (id, newPosition) => {
+            if (isLocked) return; // Prevent moving containers when locked
             saveToHistory(); // Save state before making changes
             setContainers((prev) =>
                 prev.map((container) =>
@@ -364,21 +376,25 @@ function App() {
             );
             setIsDirty(true);
         },
-        [saveToHistory]
+        [saveToHistory, isLocked]
     );
 
     // Update multiple container positions (for group movement)
-    const updateMultipleContainerPositions = useCallback((updates) => {
-        setContainers((prev) =>
-            prev.map((container) => {
-                const update = updates.find((u) => u.id === container.id);
-                return update
-                    ? { ...container, x: update.x, y: update.y }
-                    : container;
-            })
-        );
-        setIsDirty(true);
-    }, []);
+    const updateMultipleContainerPositions = useCallback(
+        (updates) => {
+            if (isLocked) return; // Prevent moving containers when locked
+            setContainers((prev) =>
+                prev.map((container) => {
+                    const update = updates.find((u) => u.id === container.id);
+                    return update
+                        ? { ...container, x: update.x, y: update.y }
+                        : container;
+                })
+            );
+            setIsDirty(true);
+        },
+        [isLocked]
+    );
 
     // Handle group movement when dragging a selected item
     const handleGroupMovement = useCallback(
@@ -462,6 +478,7 @@ function App() {
     // Update node text
     const updateNodeText = useCallback(
         (id, newText) => {
+            if (isLocked) return; // Prevent editing text when locked
             saveToHistory(); // Save state before text changes
             setNodes((prev) =>
                 prev.map((node) =>
@@ -470,12 +487,13 @@ function App() {
             );
             setIsDirty(true);
         },
-        [saveToHistory]
+        [saveToHistory, isLocked]
     );
 
     // Update node properties (text, color, etc.)
     const updateNode = useCallback(
         (id, updates) => {
+            if (isLocked) return; // Prevent editing properties when locked
             saveToHistory(); // Save state before property changes
             setNodes((prev) =>
                 prev.map((node) =>
@@ -484,7 +502,7 @@ function App() {
             );
             setIsDirty(true);
         },
-        [saveToHistory]
+        [saveToHistory, isLocked]
     );
 
     // Update title
@@ -496,6 +514,7 @@ function App() {
     // Delete a node
     const deleteNode = useCallback(
         (id) => {
+            if (isLocked) return; // Prevent deleting nodes when locked
             saveToHistory(); // Save state before making changes
             setNodes((prev) => prev.filter((node) => node.id !== id));
             // Also delete connections involving this node
@@ -507,7 +526,7 @@ function App() {
             }
             setIsDirty(true);
         },
-        [selectedNode, saveToHistory]
+        [selectedNode, saveToHistory, isLocked]
     );
 
     // Segment management functions
@@ -546,14 +565,19 @@ function App() {
     }, []);
 
     // Start connection mode
-    const startConnection = useCallback((fromNodeId, fromPort = "right") => {
-        setIsConnecting(true);
-        setConnectingFrom({ nodeId: fromNodeId, port: fromPort });
-    }, []);
+    const startConnection = useCallback(
+        (fromNodeId, fromPort = "right") => {
+            if (isLocked) return; // Prevent creating connections when locked
+            setIsConnecting(true);
+            setConnectingFrom({ nodeId: fromNodeId, port: fromPort });
+        },
+        [isLocked]
+    );
 
     // Complete connection
     const completeConnection = useCallback(
         (toNodeId, toPort = "left") => {
+            if (isLocked) return; // Prevent creating connections when locked
             if (
                 isConnecting &&
                 connectingFrom &&
@@ -589,12 +613,13 @@ function App() {
             setIsConnecting(false);
             setConnectingFrom(null);
         },
-        [isConnecting, connectingFrom, nodes, saveToHistory]
+        [isConnecting, connectingFrom, nodes, saveToHistory, isLocked]
     );
 
     // Complete decision connection with Yes/No choice
     const completeDecisionConnection = useCallback(
         (decisionType) => {
+            if (isLocked) return; // Prevent creating connections when locked
             if (pendingConnection) {
                 saveToHistory(); // Save state before making changes
                 const newConnection = {
@@ -611,7 +636,7 @@ function App() {
             setShowDecisionSelector(false);
             setPendingConnection(null);
         },
-        [pendingConnection, saveToHistory]
+        [pendingConnection, saveToHistory, isLocked]
     );
 
     // Cancel decision connection
@@ -629,27 +654,30 @@ function App() {
     // Delete a connection
     const deleteConnection = useCallback(
         (connectionId) => {
+            if (isLocked) return; // Prevent deleting connections when locked
             saveToHistory(); // Save state before deleting connection
             setConnections((prev) =>
                 prev.filter((conn) => conn.id !== connectionId)
             );
             setIsDirty(true);
         },
-        [saveToHistory]
+        [saveToHistory, isLocked]
     );
 
     // Container handlers
     const addContainer = useCallback(
         (container) => {
+            if (isLocked) return; // Prevent adding containers when locked
             saveToHistory(); // Save state before adding container
             setContainers((prev) => [...prev, container]);
             setIsDirty(true);
         },
-        [saveToHistory]
+        [saveToHistory, isLocked]
     );
 
     const updateContainer = useCallback(
         (id, updates) => {
+            if (isLocked) return; // Prevent updating containers when locked
             // Don't save to history for every position update to avoid too many entries
             // Only save for significant changes (not just position)
             if (!updates.hasOwnProperty("x") && !updates.hasOwnProperty("y")) {
@@ -664,11 +692,12 @@ function App() {
             );
             setIsDirty(true);
         },
-        [saveToHistory]
+        [saveToHistory, isLocked]
     );
 
     const deleteContainer = useCallback(
         (id) => {
+            if (isLocked) return; // Prevent deleting containers when locked
             saveToHistory(); // Save state before deleting container
             setContainers((prev) =>
                 prev.filter((container) => container.id !== id)
@@ -676,7 +705,7 @@ function App() {
             setSelectedContainer(null);
             setIsDirty(true);
         },
-        [saveToHistory]
+        [saveToHistory, isLocked]
     );
 
     const selectContainer = useCallback((id) => {
@@ -747,6 +776,7 @@ function App() {
 
     // Delete multiple nodes at once
     const deleteSelectedNodes = useCallback(() => {
+        if (isLocked) return; // Prevent deleting nodes when locked
         if (selectedNodes.length > 0) {
             saveToHistory(); // Save state before deleting nodes
             setNodes((prev) =>
@@ -763,10 +793,11 @@ function App() {
             setSelectedNodes([]);
             setIsDirty(true);
         }
-    }, [selectedNodes, saveToHistory]);
+    }, [selectedNodes, saveToHistory, isLocked]);
 
     // Delete multiple containers at once
     const deleteSelectedContainers = useCallback(() => {
+        if (isLocked) return; // Prevent deleting containers when locked
         if (selectedContainers.length > 0) {
             saveToHistory(); // Save state before deleting containers
             setContainers((prev) =>
@@ -777,22 +808,29 @@ function App() {
             setSelectedContainers([]);
             setIsDirty(true);
         }
-    }, [selectedContainers, saveToHistory]);
+    }, [selectedContainers, saveToHistory, isLocked]);
 
     const toggleDrawingContainer = useCallback(() => {
+        if (isLocked) return; // Prevent container drawing when locked
         setIsDrawingContainer((prev) => !prev);
         if (isDrawingContainer) {
             // If stopping drawing mode, deselect any selected container
             setSelectedContainer(null);
         }
-    }, [isDrawingContainer]);
+    }, [isDrawingContainer, isLocked]);
 
     const startDrawingContainer = useCallback(() => {
+        if (isLocked) return; // Prevent container drawing when locked
         setIsDrawingContainer(true);
-    }, []);
+    }, [isLocked]);
 
     const stopDrawingContainer = useCallback(() => {
         setIsDrawingContainer(false);
+    }, []);
+
+    // Toggle lock state
+    const toggleLock = useCallback(() => {
+        setIsLocked((prev) => !prev);
     }, []);
 
     // Clear all nodes
@@ -806,6 +844,7 @@ function App() {
         setSelectedContainers([]);
         setCurrentFile(null);
         setTitle("");
+        setIsLocked(false); // Reset lock state when clearing canvas
         setIsDirty(false);
         // Clear history when starting new
         setHistory([]);
@@ -816,7 +855,7 @@ function App() {
     // Save file
     const saveFile = useCallback(async () => {
         const data = JSON.stringify(
-            { title, nodes, connections, containers },
+            { title, nodes, connections, containers, isLocked },
             null,
             2
         );
@@ -848,7 +887,7 @@ function App() {
             URL.revokeObjectURL(url);
             setIsDirty(false);
         }
-    }, [title, nodes, connections, containers]);
+    }, [title, nodes, connections, containers, isLocked]);
 
     // Load file data
     const loadFile = useCallback(
@@ -863,6 +902,8 @@ function App() {
                     setContainers(parsed.containers || []);
                     // Load title if it exists, otherwise empty string
                     setTitle(parsed.title || "");
+                    // Load lock state if it exists, otherwise default to false
+                    setIsLocked(parsed.isLocked || false);
                     setSelectedNode(null);
                     setSelectedNodes([]);
                     setSelectedContainer(null);
@@ -1052,6 +1093,7 @@ function App() {
                         segments,
                         containers,
                         title,
+                        isLocked,
                     },
                     null,
                     2
@@ -1175,6 +1217,13 @@ function App() {
     // Handle keyboard events for deleting selected components
     useEffect(() => {
         const handleKeyDown = (e) => {
+            // Handle Ctrl+L / Cmd+L for lock toggle
+            if ((e.ctrlKey || e.metaKey) && e.key === "l") {
+                e.preventDefault();
+                toggleLock();
+                return;
+            }
+
             // Handle Ctrl+Z / Cmd+Z for undo
             if ((e.ctrlKey || e.metaKey) && e.key === "z" && !e.shiftKey) {
                 e.preventDefault();
@@ -1265,6 +1314,7 @@ function App() {
         clearAllSelections,
         undo,
         redo,
+        toggleLock,
     ]);
 
     return (
@@ -1282,9 +1332,40 @@ function App() {
                     onRedo={redo}
                     canUndo={historyIndex > 0}
                     canRedo={historyIndex < history.length - 1}
+                    isLocked={isLocked}
+                    onToggleLock={toggleLock}
                 />
 
-                <div className="main-content" style={{ position: "relative" }}>
+                <div
+                    className="main-content"
+                    style={{
+                        position: "relative",
+                    }}
+                >
+                    {/* Lock indicator overlay - fixed position */}
+                    {isLocked && (
+                        <div
+                            style={{
+                                position: "fixed",
+                                top: "100px", // Below toolbar
+                                right: "20px",
+                                zIndex: 1000,
+                                backgroundColor: "#f44336",
+                                color: "white",
+                                padding: "8px 12px",
+                                borderRadius: "20px",
+                                fontSize: "12px",
+                                fontWeight: "bold",
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "6px",
+                                boxShadow: "0 2px 8px rgba(244, 67, 54, 0.3)",
+                            }}
+                        >
+                            <LockIcon sx={{ fontSize: "14px" }} />
+                            LOCKED
+                        </div>
+                    )}
                     <Sidebar
                         onAddNode={addNode}
                         segments={segments}
@@ -1293,6 +1374,7 @@ function App() {
                         onUpdateSegment={updateSegment}
                         isDrawingContainer={isDrawingContainer}
                         onToggleDrawingContainer={toggleDrawingContainer}
+                        isLocked={isLocked}
                     />
 
                     <Canvas
@@ -1307,6 +1389,7 @@ function App() {
                         containers={containers}
                         selectedContainer={selectedContainer}
                         isDrawingContainer={isDrawingContainer}
+                        isLocked={isLocked}
                         onSelectNode={setSelectedNode}
                         onToggleNodeSelection={toggleNodeSelection}
                         onToggleContainerSelection={toggleContainerSelection}

@@ -16,6 +16,7 @@ const Canvas = ({
     containers,
     selectedContainer,
     isDrawingContainer,
+    isLocked,
     onSelectNode,
     onToggleNodeSelection,
     onToggleContainerSelection,
@@ -222,10 +223,23 @@ const Canvas = ({
                 width: "100%",
                 height: "100%",
                 position: "relative",
-                border: isDrawingContainer ? "2px dashed #2196f3" : "none",
-                borderRadius: isDrawingContainer ? "8px" : "0",
+                border: isLocked
+                    ? "3px solid #f44336"
+                    : isDrawingContainer
+                    ? "2px dashed #2196f3"
+                    : "none",
+                borderRadius: isLocked
+                    ? "4px"
+                    : isDrawingContainer
+                    ? "8px"
+                    : "0",
+                backgroundColor: isLocked
+                    ? "rgba(244, 67, 54, 0.02)"
+                    : "transparent",
                 boxShadow: isDrawingContainer
                     ? "inset 0 0 20px rgba(33, 150, 243, 0.1)"
+                    : isLocked
+                    ? "0 2px 8px rgba(244, 67, 54, 0.3)"
                     : "none",
                 transition: "all 0.3s ease",
                 cursor: isDrawingContainer ? "crosshair" : "default",
