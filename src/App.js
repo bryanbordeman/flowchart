@@ -1350,7 +1350,7 @@ function App() {
                                 top: "100px", // Below toolbar
                                 right: "20px",
                                 zIndex: 1000,
-                                backgroundColor: "#f44336",
+                                backgroundColor: "#008093",
                                 color: "white",
                                 padding: "8px 12px",
                                 borderRadius: "20px",
@@ -1359,7 +1359,7 @@ function App() {
                                 display: "flex",
                                 alignItems: "center",
                                 gap: "6px",
-                                boxShadow: "0 2px 8px rgba(244, 67, 54, 0.3)",
+                                boxShadow: "0 2px 8px rgba(0, 128, 147, 0.3)",
                             }}
                         >
                             <LockIcon sx={{ fontSize: "14px" }} />

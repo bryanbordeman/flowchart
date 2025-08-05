@@ -224,7 +224,7 @@ const Canvas = ({
                 height: "100%",
                 position: "relative",
                 border: isLocked
-                    ? "3px solid #f44336"
+                    ? "2px solid #008093"
                     : isDrawingContainer
                     ? "2px dashed #2196f3"
                     : "none",
@@ -234,12 +234,12 @@ const Canvas = ({
                     ? "8px"
                     : "0",
                 backgroundColor: isLocked
-                    ? "rgba(244, 67, 54, 0.02)"
+                    ? "rgba(0, 128, 147, 0.02)"
                     : "transparent",
                 boxShadow: isDrawingContainer
                     ? "inset 0 0 20px rgba(33, 150, 243, 0.1)"
                     : isLocked
-                    ? "0 2px 8px rgba(244, 67, 54, 0.3)"
+                    ? "0 2px 8px rgba(0, 128, 147, 0.3)"
                     : "none",
                 transition: "all 0.3s ease",
                 cursor: isDrawingContainer ? "crosshair" : "default",

@@ -483,6 +483,12 @@ code {
     white-space: nowrap;
 }
 
+.zoom-slider-container {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
 .zoom-slider {
     width: 80px;
     height: 4px;
@@ -509,6 +515,29 @@ code {
     border-radius: 50%;
     cursor: pointer;
     border: none;
+}
+
+/* 100% marker styles */
+.zoom-marker-100 {
+    position: absolute;
+    left: 44.44%; /* (1.0 - 0.2) / (2.0 - 0.2) * 100% = 44.44% */
+    top: 50%;
+    transform: translate(-50%, -50%);
+    cursor: pointer;
+    padding: 4px;
+    z-index: 10;
+}
+
+.zoom-marker-100:hover {
+    background-color: rgba(0, 123, 255, 0.1);
+    border-radius: 4px;
+}
+
+.zoom-marker-line {
+    width: 2px;
+    height: 8px;
+    background: #007bff;
+    border-radius: 1px;
 }
 
 .zoom-percentage {

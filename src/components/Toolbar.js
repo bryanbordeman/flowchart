@@ -164,13 +164,13 @@ const Toolbar = ({
                         onClick={onToggleLock}
                         size="small"
                         sx={{
-                            color: isLocked ? "error.main" : "primary.main",
+                            color: isLocked ? "#008093" : "primary.main",
                             backgroundColor: isLocked
-                                ? "rgba(244, 67, 54, 0.1)"
+                                ? "rgba(0, 128, 147, 0.1)"
                                 : "transparent",
                             "&:hover": {
                                 backgroundColor: isLocked
-                                    ? "rgba(244, 67, 54, 0.2)"
+                                    ? "rgba(0, 128, 147, 0.2)"
                                     : "rgba(0, 128, 147, 0.1)",
                             },
                         }}

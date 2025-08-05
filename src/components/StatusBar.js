@@ -43,15 +43,27 @@ const StatusBar = ({
             {zoom !== undefined && onZoomChange && (
                 <div className="zoom-controls">
                     <span className="zoom-label">Zoom</span>
-                    <input
-                        type="range"
-                        min={0.2}
-                        max={2}
-                        step={0.01}
-                        value={zoom}
-                        onChange={(e) => onZoomChange(Number(e.target.value))}
-                        className="zoom-slider"
-                    />
+                    <div className="zoom-slider-container">
+                        <input
+                            type="range"
+                            min={0.2}
+                            max={2}
+                            step={0.01}
+                            value={zoom}
+                            onChange={(e) =>
+                                onZoomChange(Number(e.target.value))
+                            }
+                            className="zoom-slider"
+                        />
+                        {/* 100% marker - clickable to snap to 1.0 */}
+                        <div
+                            className="zoom-marker-100"
+                            onClick={() => onZoomChange(1.0)}
+                            title="Click to reset to 100%"
+                        >
+                            <div className="zoom-marker-line"></div>
+                        </div>
+                    </div>
                     <span className="zoom-percentage">
                         {Math.round(zoom * 100)}%
                     </span>
