@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import Canvas from "./components/Canvas";
 import Sidebar from "./components/Sidebar";
 import Toolbar from "./components/Toolbar";
@@ -137,6 +137,7 @@ function App() {
     // Loading state
     const [showLoadingModal, setShowLoadingModal] = useState(true);
     const [loadingFadeOut, setLoadingFadeOut] = useState(false);
+    const [openedWithFile, setOpenedWithFile] = useState(false);
 
     // No automatic fade out - only when user clicks a button
 
@@ -191,26 +192,25 @@ function App() {
     ]);
 
     // Undo/Redo state management
-    const [history, setHistory] = useState([]);
-    const [historyIndex, setHistoryIndex] = useState(-1);
+    const initialHistoryState = {
+        nodes: [],
+        connections: [],
+        containers: [],
+        segments: segments,
+        title: "",
+        isLocked: false,
+        timestamp: Date.now(),
+    };
+
+    const [history, setHistory] = useState([initialHistoryState]);
+    const [historyIndex, setHistoryIndex] = useState(0);
+    const historyIndexRef = useRef(0);
     const maxHistorySize = 50; // Limit history size for memory management
 
-    // Save initial state to history
+    // Keep ref in sync with state
     useEffect(() => {
-        if (history.length === 0) {
-            const initialState = {
-                nodes: [],
-                connections: [],
-                containers: [],
-                segments: segments,
-                title: "",
-                isLocked: false,
-                timestamp: Date.now(),
-            };
-            setHistory([initialState]);
-            setHistoryIndex(0);
-        }
-    }, []); // Only run once on mount
+        historyIndexRef.current = historyIndex;
+    }, [historyIndex, history.length]);
 
     // Generate unique ID for nodes
     const generateId = () => Date.now().toString();
@@ -227,23 +227,23 @@ function App() {
             timestamp: Date.now(),
         };
 
-        setHistory((prev) => {
+        setHistory((prevHistory) => {
+            const currentIndex = historyIndexRef.current;
             // Remove any states after current index (for when we've undone some actions)
-            const newHistory = prev.slice(0, historyIndex + 1);
+            const newHistory = prevHistory.slice(0, currentIndex + 1);
             // Add new state
             newHistory.push(currentState);
+
             // Limit history size
             if (newHistory.length > maxHistorySize) {
                 newHistory.shift();
-                return newHistory;
             }
+
             return newHistory;
         });
 
-        setHistoryIndex((prev) => {
-            const newIndex = Math.min(prev + 1, maxHistorySize - 1);
-            return newIndex;
-        });
+        // Update index directly - no setTimeout needed
+        setHistoryIndex(historyIndexRef.current + 1);
     }, [
         nodes,
         connections,
@@ -251,7 +251,6 @@ function App() {
         segments,
         title,
         isLocked,
-        historyIndex,
         maxHistorySize,
     ]);
 
@@ -267,7 +266,9 @@ function App() {
                 setTitle(state.title);
                 setIsLocked(state.isLocked || false);
                 setHistoryIndex(stateIndex);
-                setIsDirty(true);
+
+                // Set isDirty to false only if we're back to index 0 (original state)
+                setIsDirty(stateIndex > 0);
 
                 // Clear selections when undoing/redoing
                 setSelectedNode(null);
@@ -276,7 +277,7 @@ function App() {
                 setSelectedContainers([]);
             }
         },
-        [history]
+        [history, historyIndex]
     );
 
     // Undo function
@@ -297,7 +298,7 @@ function App() {
     const addNode = useCallback(
         (type, position) => {
             if (isLocked) return; // Prevent adding nodes when locked
-            saveToHistory(); // Save state before making changes
+            saveToHistory(); // Save state BEFORE making changes
             const newNode = {
                 id: generateId(),
                 type: type,
@@ -333,7 +334,7 @@ function App() {
     const updateNodePosition = useCallback(
         (id, newPosition) => {
             if (isLocked) return; // Prevent moving nodes when locked
-            saveToHistory(); // Save state before making changes
+            saveToHistory(); // Save state BEFORE making changes
             setNodes((prev) =>
                 prev.map((node) =>
                     node.id === id ? { ...node, position: newPosition } : node
@@ -348,7 +349,7 @@ function App() {
     const updateMultipleNodePositions = useCallback(
         (updates) => {
             if (isLocked) return; // Prevent moving nodes when locked
-            saveToHistory(); // Save state before making changes
+            saveToHistory(); // Save state BEFORE making changes
             setNodes((prev) =>
                 prev.map((node) => {
                     const update = updates.find((u) => u.id === node.id);
@@ -366,7 +367,7 @@ function App() {
     const updateContainerPosition = useCallback(
         (id, newPosition) => {
             if (isLocked) return; // Prevent moving containers when locked
-            saveToHistory(); // Save state before making changes
+            saveToHistory(); // Save state BEFORE making changes
             setContainers((prev) =>
                 prev.map((container) =>
                     container.id === id
@@ -479,7 +480,7 @@ function App() {
     const updateNodeText = useCallback(
         (id, newText) => {
             if (isLocked) return; // Prevent editing text when locked
-            saveToHistory(); // Save state before text changes
+            saveToHistory(); // Save state BEFORE making changes
             setNodes((prev) =>
                 prev.map((node) =>
                     node.id === id ? { ...node, text: newText } : node
@@ -494,7 +495,7 @@ function App() {
     const updateNode = useCallback(
         (id, updates) => {
             if (isLocked) return; // Prevent editing properties when locked
-            saveToHistory(); // Save state before property changes
+            saveToHistory(); // Save state BEFORE making changes
             setNodes((prev) =>
                 prev.map((node) =>
                     node.id === id ? { ...node, ...updates } : node
@@ -515,7 +516,7 @@ function App() {
     const deleteNode = useCallback(
         (id) => {
             if (isLocked) return; // Prevent deleting nodes when locked
-            saveToHistory(); // Save state before making changes
+            saveToHistory(); // Save state BEFORE making changes
             setNodes((prev) => prev.filter((node) => node.id !== id));
             // Also delete connections involving this node
             setConnections((prev) =>
@@ -612,7 +613,7 @@ function App() {
                     setShowDecisionSelector(true);
                 } else {
                     // Create regular connection
-                    saveToHistory(); // Save state before making changes
+                    saveToHistory(); // Save state BEFORE making changes
                     const newConnection = {
                         id: generateId(),
                         from: connectingFrom.nodeId,
@@ -635,7 +636,7 @@ function App() {
         (decisionType) => {
             if (isLocked) return; // Prevent creating connections when locked
             if (pendingConnection) {
-                saveToHistory(); // Save state before making changes
+                saveToHistory(); // Save state BEFORE making changes
                 const newConnection = {
                     id: generateId(),
                     from: pendingConnection.from,
@@ -669,7 +670,7 @@ function App() {
     const deleteConnection = useCallback(
         (connectionId) => {
             if (isLocked) return; // Prevent deleting connections when locked
-            saveToHistory(); // Save state before deleting connection
+            saveToHistory(); // Save state BEFORE making changes
             setConnections((prev) =>
                 prev.filter((conn) => conn.id !== connectionId)
             );
@@ -682,7 +683,7 @@ function App() {
     const addContainer = useCallback(
         (container) => {
             if (isLocked) return; // Prevent adding containers when locked
-            saveToHistory(); // Save state before adding container
+            saveToHistory(); // Save state BEFORE making changes
             setContainers((prev) => [...prev, container]);
             setIsDirty(true);
         },
@@ -712,7 +713,7 @@ function App() {
     const deleteContainer = useCallback(
         (id) => {
             if (isLocked) return; // Prevent deleting containers when locked
-            saveToHistory(); // Save state before deleting container
+            saveToHistory(); // Save state BEFORE making changes
             setContainers((prev) =>
                 prev.filter((container) => container.id !== id)
             );
@@ -792,7 +793,7 @@ function App() {
     const deleteSelectedNodes = useCallback(() => {
         if (isLocked) return; // Prevent deleting nodes when locked
         if (selectedNodes.length > 0) {
-            saveToHistory(); // Save state before deleting nodes
+            saveToHistory(); // Save state BEFORE making changes
             setNodes((prev) =>
                 prev.filter((node) => !selectedNodes.includes(node.id))
             );
@@ -813,7 +814,7 @@ function App() {
     const deleteSelectedContainers = useCallback(() => {
         if (isLocked) return; // Prevent deleting containers when locked
         if (selectedContainers.length > 0) {
-            saveToHistory(); // Save state before deleting containers
+            saveToHistory(); // Save state BEFORE making changes
             setContainers((prev) =>
                 prev.filter(
                     (container) => !selectedContainers.includes(container.id)
@@ -860,11 +861,20 @@ function App() {
         setTitle("");
         setIsLocked(false); // Reset lock state when clearing canvas
         setIsDirty(false);
-        // Clear history when starting new
-        setHistory([]);
-        setHistoryIndex(-1);
+        // Reset history with fresh initial state
+        const freshInitialState = {
+            nodes: [],
+            connections: [],
+            containers: [],
+            segments: segments,
+            title: "",
+            isLocked: false,
+            timestamp: Date.now(),
+        };
+        setHistory([freshInitialState]);
+        setHistoryIndex(0);
         cancelConnection();
-    }, [cancelConnection]);
+    }, [cancelConnection, segments]);
 
     // Save file
     const saveFile = useCallback(async () => {
@@ -923,9 +933,18 @@ function App() {
                     setSelectedContainer(null);
                     setSelectedContainers([]);
                     setIsDirty(false);
-                    // Clear history when loading new file
-                    setHistory([]);
-                    setHistoryIndex(-1);
+                    // Reset history with loaded state as initial
+                    const loadedInitialState = {
+                        nodes: parsed.nodes,
+                        connections: parsed.connections || [],
+                        containers: parsed.containers || [],
+                        segments: segments,
+                        title: parsed.title || "",
+                        isLocked: parsed.isLocked || false,
+                        timestamp: Date.now(),
+                    };
+                    setHistory([loadedInitialState]);
+                    setHistoryIndex(0);
                     cancelConnection();
                 } else {
                     alert("Invalid file format");
@@ -1195,6 +1214,18 @@ function App() {
                     filePath = dataOrObject.filePath;
                 }
 
+                // If loading modal is still showing, this means app was opened with a file
+                if (showLoadingModal) {
+                    setOpenedWithFile(true);
+                    setShowLoadingModal(false); // Hide modal immediately
+                    loadFile(data);
+                    if (filePath) {
+                        setCurrentFile(filePath);
+                    }
+                    return;
+                }
+
+                // Normal file opening (when app is already running)
                 if (isDirty) {
                     setUnsavedDialogAction(() => () => {
                         loadFile(data);
@@ -1226,7 +1257,7 @@ function App() {
                 window.electronAPI.removeAllListeners("menu-save-as-file");
             };
         }
-    }, [isDirty, clearCanvas, loadFile, saveFile]);
+    }, [isDirty, clearCanvas, loadFile, saveFile, showLoadingModal]);
 
     // Handle keyboard events for deleting selected components
     useEffect(() => {

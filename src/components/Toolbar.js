@@ -121,14 +121,14 @@ const Toolbar = ({
                 </Button>
 
                 {/* Undo Button */}
-                <Tooltip title={canUndo ? "Undo (Ctrl+Z)" : "Nothing to undo"}>
+                <Tooltip title={isDirty ? "Undo (Ctrl+Z)" : "Nothing to undo"}>
                     <span>
                         <IconButton
                             onClick={onUndo}
-                            disabled={!canUndo}
+                            disabled={!isDirty}
                             size="small"
                             sx={{
-                                color: canUndo ? "primary.main" : "disabled",
+                                color: isDirty ? "primary.main" : "disabled",
                             }}
                         >
                             <Undo />
