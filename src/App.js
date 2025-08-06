@@ -530,39 +530,53 @@ function App() {
     );
 
     // Segment management functions
-    const addSegment = useCallback((segment) => {
-        setSegments((prev) => [...prev, segment]);
-        setIsDirty(true);
-    }, []);
+    const addSegment = useCallback(
+        (segment) => {
+            if (isLocked) return; // Prevent adding segments when locked
+            setSegments((prev) => [...prev, segment]);
+            setIsDirty(true);
+        },
+        [isLocked]
+    );
 
-    const deleteSegment = useCallback((segmentId) => {
-        // Don't delete the default segment
-        if (segmentId === "default") return;
+    const deleteSegment = useCallback(
+        (segmentId) => {
+            if (isLocked) return; // Prevent deleting segments when locked
+            // Don't delete the default segment
+            if (segmentId === "default") return;
 
-        setSegments((prev) =>
-            prev.filter((segment) => segment.id !== segmentId)
-        );
+            setSegments((prev) =>
+                prev.filter((segment) => segment.id !== segmentId)
+            );
 
-        // Update nodes that were using this segment to use default
-        setNodes((prev) =>
-            prev.map((node) =>
-                node.segment === segmentId
-                    ? { ...node, segment: "default" }
-                    : node
-            )
-        );
+            // Update nodes that were using this segment to use default
+            setNodes((prev) =>
+                prev.map((node) =>
+                    node.segment === segmentId
+                        ? { ...node, segment: "default" }
+                        : node
+                )
+            );
 
-        setIsDirty(true);
-    }, []);
+            setIsDirty(true);
+        },
+        [isLocked]
+    );
 
-    const updateSegment = useCallback((segmentId, updates) => {
-        setSegments((prev) =>
-            prev.map((segment) =>
-                segment.id === segmentId ? { ...segment, ...updates } : segment
-            )
-        );
-        setIsDirty(true);
-    }, []);
+    const updateSegment = useCallback(
+        (segmentId, updates) => {
+            if (isLocked) return; // Prevent updating segments when locked
+            setSegments((prev) =>
+                prev.map((segment) =>
+                    segment.id === segmentId
+                        ? { ...segment, ...updates }
+                        : segment
+                )
+            );
+            setIsDirty(true);
+        },
+        [isLocked]
+    );
 
     // Start connection mode
     const startConnection = useCallback(

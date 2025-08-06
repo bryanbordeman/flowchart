@@ -283,6 +283,7 @@ const Sidebar = ({
                     onAddSegment={onAddSegment}
                     onDeleteSegment={onDeleteSegment}
                     onUpdateSegment={onUpdateSegment}
+                    isLocked={isLocked}
                 />
             </Box>
         </Paper>

@@ -32,6 +32,7 @@ const SegmentManager = ({
     onAddSegment,
     onDeleteSegment,
     onUpdateSegment,
+    isLocked = false,
 }) => {
     const [showColorPicker, setShowColorPicker] = useState(null);
     const [newSegmentName, setNewSegmentName] = useState("");
@@ -43,6 +44,7 @@ const SegmentManager = ({
     };
 
     const handleAddSegment = () => {
+        if (isLocked) return; // Prevent adding segments when locked
         if (newSegmentName.trim()) {
             onAddSegment({
                 id: Date.now().toString(),
@@ -55,10 +57,12 @@ const SegmentManager = ({
     };
 
     const handleColorChange = (segmentId, color) => {
+        if (isLocked) return; // Prevent color changes when locked
         onUpdateSegment(segmentId, { color: color.hex });
     };
 
     const handleNameChange = (segmentId, newName) => {
+        if (isLocked) return; // Prevent name changes when locked
         if (newName.trim()) {
             onUpdateSegment(segmentId, { name: newName.trim() });
         }
@@ -88,8 +92,13 @@ const SegmentManager = ({
                 </Typography>
                 <IconButton
                     size="small"
+                    disabled={isLocked}
                     onClick={() => setIsAddingSegment(true)}
-                    title="Add new segment"
+                    title={
+                        isLocked
+                            ? "Canvas is locked - cannot add segments"
+                            : "Add new segment"
+                    }
                     color="primary"
                 >
                     <Add />
@@ -125,6 +134,7 @@ const SegmentManager = ({
                         <Button
                             size="small"
                             variant="contained"
+                            disabled={isLocked}
                             onClick={handleAddSegment}
                         >
                             Add
@@ -177,29 +187,44 @@ const SegmentManager = ({
                                     borderRadius: "50%",
                                     backgroundColor: segment.color,
                                     border: "2px solid #ddd",
-                                    cursor: "pointer",
+                                    cursor: isLocked ? "default" : "pointer",
                                     flexShrink: 0,
+                                    opacity: isLocked ? 0.6 : 1,
                                     "&:hover": {
-                                        borderColor: "primary.main",
+                                        borderColor: isLocked
+                                            ? "#ddd"
+                                            : "primary.main",
                                     },
                                 }}
                                 onClick={() =>
+                                    !isLocked &&
                                     setShowColorPicker(
                                         showColorPicker === segment.id
                                             ? null
                                             : segment.id
                                     )
                                 }
-                                title="Click to change color"
+                                title={
+                                    isLocked
+                                        ? "Canvas is locked - cannot change color"
+                                        : "Click to change color"
+                                }
                             />
                             <TextField
                                 fullWidth
                                 size="small"
+                                disabled={isLocked}
                                 value={segment.name}
                                 onChange={(e) =>
+                                    !isLocked &&
                                     handleNameChange(segment.id, e.target.value)
                                 }
                                 variant="standard"
+                                title={
+                                    isLocked
+                                        ? "Canvas is locked - cannot edit name"
+                                        : "Edit segment name"
+                                }
                                 onBlur={(e) => {
                                     if (!e.target.value.trim()) {
                                         // Reset to original name if empty
@@ -209,8 +234,17 @@ const SegmentManager = ({
                             />
                             <IconButton
                                 size="small"
-                                onClick={() => onDeleteSegment(segment.id)}
-                                title="Delete segment"
+                                disabled={isLocked || segment.id === "default"}
+                                onClick={() =>
+                                    !isLocked && onDeleteSegment(segment.id)
+                                }
+                                title={
+                                    isLocked
+                                        ? "Canvas is locked - cannot delete segments"
+                                        : segment.id === "default"
+                                        ? "Cannot delete default segment"
+                                        : "Delete segment"
+                                }
                                 color="error"
                             >
                                 <Delete fontSize="small" />
