@@ -68,7 +68,8 @@ function createWindow() {
         if (openFilePath && fs.existsSync(openFilePath)) {
             try {
                 const data = fs.readFileSync(openFilePath, "utf-8");
-                mainWindow.webContents.send("menu-open-file", {
+                // Send file data AND flag that app was opened with file
+                mainWindow.webContents.send("app-opened-with-file", {
                     data: data,
                     filePath: openFilePath,
                 });
@@ -78,6 +79,9 @@ function createWindow() {
                     "Failed to open file: " + error.message
                 );
             }
+        } else {
+            // Send flag that app was opened normally (show modal)
+            mainWindow.webContents.send("app-opened-normally");
         }
     });
 
@@ -621,7 +625,7 @@ app.on("open-file", (event, filePath) => {
     event.preventDefault();
 
     if (mainWindow) {
-        // If window exists, send the file data to it
+        // If window exists, send the file data to it (normal file opening)
         try {
             const data = fs.readFileSync(filePath, "utf-8");
             mainWindow.webContents.send("menu-open-file", {
@@ -636,7 +640,7 @@ app.on("open-file", (event, filePath) => {
             );
         }
     } else {
-        // Store the file to open it once the window is ready
+        // Store the file to open it once the window is ready (startup case)
         app.commandLine.appendSwitch("open-file", filePath);
     }
 }); // Handle command line arguments for file associations on Windows/Linux

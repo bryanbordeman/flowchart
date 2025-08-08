@@ -134,10 +134,9 @@ const StyledDialog = styled(Dialog)(({ theme }) => ({
 }));
 
 function App() {
-    // Loading state
-    const [showLoadingModal, setShowLoadingModal] = useState(true);
+    // Loading state - start hidden, show only when told by Electron
+    const [showLoadingModal, setShowLoadingModal] = useState(false);
     const [loadingFadeOut, setLoadingFadeOut] = useState(false);
-    const [openedWithFile, setOpenedWithFile] = useState(false);
 
     // No automatic fade out - only when user clicks a button
 
@@ -956,6 +955,29 @@ function App() {
         [cancelConnection]
     );
 
+    // Handle Electron startup signals
+    useEffect(() => {
+        if (window.electronAPI) {
+            // App was opened normally - show modal
+            window.electronAPI.onAppOpenedNormally(() => {
+                setShowLoadingModal(true);
+            });
+
+            // App was opened with file - don't show modal, load file
+            window.electronAPI.onAppOpenedWithFile(
+                (event, { data, filePath }) => {
+                    loadFile(data);
+                    if (filePath) {
+                        setCurrentFile(filePath);
+                    }
+                }
+            );
+        } else {
+            // Web version - always show modal
+            setShowLoadingModal(true);
+        }
+    }, [loadFile]);
+
     // Handle start modal button actions
     const handleStartModalAction = useCallback(
         async (action) => {
@@ -1214,18 +1236,7 @@ function App() {
                     filePath = dataOrObject.filePath;
                 }
 
-                // If loading modal is still showing, this means app was opened with a file
-                if (showLoadingModal) {
-                    setOpenedWithFile(true);
-                    setShowLoadingModal(false); // Hide modal immediately
-                    loadFile(data);
-                    if (filePath) {
-                        setCurrentFile(filePath);
-                    }
-                    return;
-                }
-
-                // Normal file opening (when app is already running)
+                // This is runtime file opening (File > Open menu or drag & drop)
                 if (isDirty) {
                     setUnsavedDialogAction(() => () => {
                         loadFile(data);
@@ -1257,7 +1268,7 @@ function App() {
                 window.electronAPI.removeAllListeners("menu-save-as-file");
             };
         }
-    }, [isDirty, clearCanvas, loadFile, saveFile, showLoadingModal]);
+    }, [isDirty, clearCanvas, loadFile, saveFile]);
 
     // Handle keyboard events for deleting selected components
     useEffect(() => {

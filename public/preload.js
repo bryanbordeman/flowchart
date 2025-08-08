@@ -65,6 +65,18 @@ contextBridge.exposeInMainWorld("electronAPI", {
         }
         ipcRenderer.on("menu-save-as-file", callback);
     },
+    onAppOpenedWithFile: (callback) => {
+        if (typeof callback !== "function") {
+            throw new Error("Callback must be a function");
+        }
+        ipcRenderer.on("app-opened-with-file", callback);
+    },
+    onAppOpenedNormally: (callback) => {
+        if (typeof callback !== "function") {
+            throw new Error("Callback must be a function");
+        }
+        ipcRenderer.on("app-opened-normally", callback);
+    },
     removeAllListeners: (channel) => {
         if (!validChannels.includes(channel)) {
             throw new Error("Invalid channel");
