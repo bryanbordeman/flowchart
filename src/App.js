@@ -533,10 +533,11 @@ function App() {
     const addSegment = useCallback(
         (segment) => {
             if (isLocked) return; // Prevent adding segments when locked
+            saveToHistory(); // Save state BEFORE making changes
             setSegments((prev) => [...prev, segment]);
             setIsDirty(true);
         },
-        [isLocked]
+        [isLocked, saveToHistory]
     );
 
     const deleteSegment = useCallback(
@@ -545,6 +546,7 @@ function App() {
             // Don't delete the default segment
             if (segmentId === "default") return;
 
+            saveToHistory(); // Save state BEFORE making changes
             setSegments((prev) =>
                 prev.filter((segment) => segment.id !== segmentId)
             );
@@ -560,12 +562,13 @@ function App() {
 
             setIsDirty(true);
         },
-        [isLocked]
+        [isLocked, saveToHistory]
     );
 
     const updateSegment = useCallback(
         (segmentId, updates) => {
             if (isLocked) return; // Prevent updating segments when locked
+            saveToHistory(); // Save state BEFORE making changes
             setSegments((prev) =>
                 prev.map((segment) =>
                     segment.id === segmentId
@@ -575,7 +578,7 @@ function App() {
             );
             setIsDirty(true);
         },
-        [isLocked]
+        [isLocked, saveToHistory]
     );
 
     // Start connection mode
@@ -878,7 +881,7 @@ function App() {
     // Save file
     const saveFile = useCallback(async () => {
         const data = JSON.stringify(
-            { title, nodes, connections, containers, isLocked },
+            { title, nodes, connections, containers, segments, isLocked },
             null,
             2
         );
@@ -910,7 +913,7 @@ function App() {
             URL.revokeObjectURL(url);
             setIsDirty(false);
         }
-    }, [title, nodes, connections, containers, isLocked]);
+    }, [title, nodes, connections, containers, segments, isLocked]);
 
     // Load file data
     const loadFile = useCallback(
@@ -923,6 +926,8 @@ function App() {
                     setConnections(parsed.connections || []);
                     // Load containers if they exist, otherwise empty array
                     setContainers(parsed.containers || []);
+                    // Load segments if they exist, otherwise use default segments
+                    setSegments(parsed.segments || segments);
                     // Load title if it exists, otherwise empty string
                     setTitle(parsed.title || "");
                     // Load lock state if it exists, otherwise default to false
@@ -937,7 +942,7 @@ function App() {
                         nodes: parsed.nodes,
                         connections: parsed.connections || [],
                         containers: parsed.containers || [],
-                        segments: segments,
+                        segments: parsed.segments || segments,
                         title: parsed.title || "",
                         isLocked: parsed.isLocked || false,
                         timestamp: Date.now(),
