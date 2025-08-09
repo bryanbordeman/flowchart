@@ -97,12 +97,6 @@ const Connection = ({ connection, nodes, onDelete }) => {
 
     // Determine if this connection is from a decision node
     const isFromDecision = fromNode.type === "decision";
-    // Calculate label position (further from the start point for decision labels)
-    const labelOffset = isFromDecision ? 35 : 20;
-    const labelPoint = {
-        x: startPoint.x + (dx * labelOffset) / distance,
-        y: startPoint.y + (dy * labelOffset) / distance,
-    };
     // Determine Yes/No label based on decision type
     let decisionLabel = "";
     if (isFromDecision) {
@@ -112,113 +106,311 @@ const Connection = ({ connection, nodes, onDelete }) => {
             decisionLabel = "No";
         }
     }
-    // Midpoint for delete button
-    const midPoint = {
-        x: (startPoint.x + endPoint.x) / 2,
-        y: (startPoint.y + endPoint.y) / 2,
+
+    // Delete button position - at the start point
+    const deleteButtonPoint = {
+        x: startPoint.x,
+        y: startPoint.y,
     };
     const handleDelete = (e) => {
         e.stopPropagation();
         onDelete(connection.id);
     };
 
-    // Polyline logic for vertical connections
-    let points;
-    // Draw right-angle if both ports are 'top' or both are 'bottom',
-    // or if the connection is between two vertically stacked components (same x)
-    const isVerticalStack =
-        startPoint.x === endPoint.x && startPoint.y !== endPoint.y;
-    const isSideStack =
-        startPoint.x === endPoint.x &&
-        startPoint.y !== endPoint.y &&
-        ((connection.fromPort === "left" && connection.toPort === "left") ||
-            (connection.fromPort === "right" && connection.toPort === "right"));
-    if (
-        (connection.fromPort === "top" && connection.toPort === "top") ||
-        (connection.fromPort === "bottom" && connection.toPort === "bottom")
-    ) {
-        // Right angle: vertical, horizontal, vertical (3 lines)
-        const lead = 62;
-        let firstY, lastY;
-        if (connection.fromPort === "top") {
-            firstY = startPoint.y - lead;
+    // Smart routing with special decision handling
+    const generateSmartPath = () => {
+        let waypoints = [startPoint];
+
+        // Special routing for Yes decisions from top port
+        if (
+            isFromDecision &&
+            connection.decisionType === "yes" &&
+            connection.fromPort === "top"
+        ) {
+            // Yes path: go up, turn left, then down to target
+            const upDistance = 60;
+            waypoints.push({ x: startPoint.x, y: startPoint.y - upDistance });
+            waypoints.push({ x: endPoint.x, y: startPoint.y - upDistance });
         } else {
-            firstY = startPoint.y + lead;
+            // Force all connections through proper routing (no straight lines)
+            if (false) {
+                // Disabled straight line detection
+            } else if (
+                // L-shape routing for all connection types
+                (connection.fromPort === "right" &&
+                    (connection.toPort === "top" ||
+                        connection.toPort === "bottom" ||
+                        connection.toPort === "left")) ||
+                (connection.fromPort === "left" &&
+                    (connection.toPort === "top" ||
+                        connection.toPort === "bottom" ||
+                        connection.toPort === "right")) ||
+                (connection.fromPort === "top" &&
+                    (connection.toPort === "left" ||
+                        connection.toPort === "right" ||
+                        connection.toPort === "bottom")) ||
+                (connection.fromPort === "bottom" &&
+                    (connection.toPort === "left" ||
+                        connection.toPort === "right" ||
+                        connection.toPort === "top"))
+            ) {
+                // L-shape routing - ensure correct direction for arrow
+                if (
+                    connection.fromPort === "right" ||
+                    connection.fromPort === "left"
+                ) {
+                    // For horizontal connections
+                    if (
+                        connection.toPort === "left" ||
+                        connection.toPort === "right"
+                    ) {
+                        // Horizontal to horizontal - simpler routing with extensions
+                        const extensionLength = 40;
+                        const startExtension =
+                            connection.fromPort === "right"
+                                ? startPoint.x + extensionLength
+                                : startPoint.x - extensionLength;
+                        const endExtension =
+                            connection.toPort === "right"
+                                ? endPoint.x + extensionLength
+                                : endPoint.x - extensionLength;
+
+                        // Simple 3-segment path: extend -> across -> extend to target
+                        waypoints.push({ x: startExtension, y: startPoint.y });
+                        waypoints.push({ x: startExtension, y: endPoint.y });
+                        waypoints.push({ x: endExtension, y: endPoint.y });
+                    } else {
+                        // Horizontal to vertical - go horizontal first, then vertical
+                        waypoints.push({ x: endPoint.x, y: startPoint.y });
+                    }
+                } else {
+                    // For vertical connections
+                    if (
+                        connection.toPort === "top" ||
+                        connection.toPort === "bottom"
+                    ) {
+                        // Vertical to vertical - add extensions from both components
+                        const extensionLength = 40;
+                        const startExtension =
+                            connection.fromPort === "bottom"
+                                ? startPoint.y + extensionLength
+                                : startPoint.y - extensionLength;
+                        const endExtension =
+                            connection.toPort === "bottom"
+                                ? endPoint.y + extensionLength
+                                : endPoint.y - extensionLength;
+
+                        // Simple 3-segment path: extend -> across -> extend to target
+                        waypoints.push({ x: startPoint.x, y: startExtension });
+                        waypoints.push({ x: endPoint.x, y: startExtension });
+                        waypoints.push({ x: endPoint.x, y: endExtension });
+                    } else {
+                        // Vertical to horizontal - go vertical first, then horizontal
+                        waypoints.push({ x: startPoint.x, y: endPoint.y });
+                    }
+                }
+            } else {
+                // Same-side connections with offset
+                const offset = 40;
+                if (
+                    connection.fromPort === "top" &&
+                    connection.toPort === "top"
+                ) {
+                    const midY = Math.min(startPoint.y, endPoint.y) - offset;
+                    waypoints.push({ x: startPoint.x, y: midY });
+                    waypoints.push({ x: endPoint.x, y: midY });
+                } else if (
+                    connection.fromPort === "bottom" &&
+                    connection.toPort === "bottom"
+                ) {
+                    const midY = Math.max(startPoint.y, endPoint.y) + offset;
+                    waypoints.push({ x: startPoint.x, y: midY });
+                    waypoints.push({ x: endPoint.x, y: midY });
+                } else if (
+                    connection.fromPort === "left" &&
+                    connection.toPort === "left"
+                ) {
+                    const midX = Math.min(startPoint.x, endPoint.x) - offset;
+                    waypoints.push({ x: midX, y: startPoint.y });
+                    waypoints.push({ x: midX, y: endPoint.y });
+                } else if (
+                    connection.fromPort === "right" &&
+                    connection.toPort === "right"
+                ) {
+                    const midX = Math.max(startPoint.x, endPoint.x) + offset;
+                    waypoints.push({ x: midX, y: startPoint.y });
+                    waypoints.push({ x: midX, y: endPoint.y });
+                } else {
+                    // Default L-shape
+                    if (
+                        connection.fromPort === "right" ||
+                        connection.fromPort === "left"
+                    ) {
+                        waypoints.push({ x: endPoint.x, y: startPoint.y });
+                    } else {
+                        waypoints.push({ x: startPoint.x, y: endPoint.y });
+                    }
+                }
+            }
         }
+
+        // Ensure final segment creates correct arrow direction
+        const lastWaypoint = waypoints[waypoints.length - 1];
+
+        // Add orthogonal routing to endpoint if needed
+        if (lastWaypoint.x !== endPoint.x && lastWaypoint.y !== endPoint.y) {
+            // We need an intermediate point to maintain orthogonal routing
+            if (connection.toPort === "top" || connection.toPort === "bottom") {
+                // For top/bottom ports, align horizontally first
+                waypoints.push({ x: endPoint.x, y: lastWaypoint.y });
+            } else {
+                // For left/right ports, align vertically first
+                waypoints.push({ x: lastWaypoint.x, y: endPoint.y });
+            }
+        }
+
+        // Create extension point BEFORE the endpoint to ensure correct arrow direction
+        // Make sure the approach is orthogonal to avoid diagonal lines
+        const currentLastWaypoint = waypoints[waypoints.length - 1];
+
         if (connection.toPort === "top") {
-            lastY = endPoint.y - lead;
-        } else {
-            lastY = endPoint.y + lead;
+            // Ensure we approach vertically from above
+            if (currentLastWaypoint.x !== endPoint.x) {
+                waypoints.push({ x: endPoint.x, y: currentLastWaypoint.y });
+            }
+            // Add tiny approach point for correct arrow direction
+            waypoints.push({ x: endPoint.x, y: endPoint.y - 2 });
+        } else if (connection.toPort === "bottom") {
+            // Ensure we approach vertically from below
+            if (currentLastWaypoint.x !== endPoint.x) {
+                waypoints.push({ x: endPoint.x, y: currentLastWaypoint.y });
+            }
+            // Add tiny approach point for correct arrow direction
+            waypoints.push({ x: endPoint.x, y: endPoint.y + 2 });
+        } else if (connection.toPort === "left") {
+            // Ensure we approach horizontally from left
+            if (currentLastWaypoint.y !== endPoint.y) {
+                waypoints.push({ x: currentLastWaypoint.x, y: endPoint.y });
+            }
+            // Add tiny approach point for correct arrow direction
+            waypoints.push({ x: endPoint.x - 2, y: endPoint.y });
+        } else if (connection.toPort === "right") {
+            // Ensure we approach horizontally from right
+            if (currentLastWaypoint.y !== endPoint.y) {
+                waypoints.push({ x: currentLastWaypoint.x, y: endPoint.y });
+            }
+            // Add tiny approach point for correct arrow direction
+            waypoints.push({ x: endPoint.x + 2, y: endPoint.y });
         }
-        points = [
-            `${startPoint.x},${startPoint.y}`,
-            `${startPoint.x},${firstY}`,
-            `${endPoint.x},${firstY}`,
-            `${endPoint.x},${lastY}`,
-            `${endPoint.x},${endPoint.y}`,
-        ].join(" ");
-    } else if (isSideStack) {
-        // Right angle: horizontal, vertical, horizontal (3 lines)
-        const lead = 62;
-        let firstX, lastX;
-        if (connection.fromPort === "left") {
-            firstX = startPoint.x - lead;
-        } else {
-            firstX = startPoint.x + lead;
+
+        // End at the actual port location
+        waypoints.push(endPoint);
+
+        return waypoints;
+    };
+
+    // Generate smart path
+    const pathPoints = generateSmartPath();
+    const points = pathPoints.map((point) => `${point.x},${point.y}`).join(" ");
+
+    // Calculate label position at the start of the line
+    let labelPoint = null;
+    if (isFromDecision && decisionLabel && pathPoints.length >= 2) {
+        // Position label near the start of the connection line
+        const startPoint = pathPoints[0];
+        const secondPoint = pathPoints[1];
+
+        // Position label 20 pixels along the first segment
+        const dx = secondPoint.x - startPoint.x;
+        const dy = secondPoint.y - startPoint.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+
+        if (distance > 0) {
+            const offset = Math.min(20, distance * 0.3); // 20 pixels or 30% of segment length
+            const ratio = offset / distance;
+
+            labelPoint = {
+                x: startPoint.x + dx * ratio,
+                y: startPoint.y + dy * ratio,
+            };
+
+            // Add slight perpendicular offset to avoid overlapping the line
+            if (Math.abs(dx) > Math.abs(dy)) {
+                // Horizontal line - offset vertically
+                labelPoint.y += connection.decisionType === "no" ? 20 : -20;
+            } else {
+                // Vertical line - offset horizontally
+                labelPoint.x += connection.decisionType === "no" ? 20 : -20;
+            }
         }
-        if (connection.toPort === "left") {
-            lastX = endPoint.x - lead;
-        } else {
-            lastX = endPoint.x + lead;
-        }
-        points = [
-            `${startPoint.x},${startPoint.y}`,
-            `${firstX},${startPoint.y}`,
-            `${firstX},${endPoint.y}`,
-            `${lastX},${endPoint.y}`,
-            `${endPoint.x},${endPoint.y}`,
-        ].join(" ");
     }
 
     return (
         <g className="connection-group">
-            {/* Main connection line or polyline */}
-            {points ? (
-                <polyline
-                    points={points}
-                    fill="none"
-                    stroke="#4682B4"
-                    strokeWidth="2"
-                    className="connection-line"
-                    markerEnd="url(#arrowhead)"
-                />
-            ) : (
-                <line
-                    x1={startPoint.x}
-                    y1={startPoint.y}
-                    x2={endPoint.x}
-                    y2={endPoint.y}
-                    stroke="#4682B4"
-                    strokeWidth="2"
-                    className="connection-line"
-                    markerEnd="url(#arrowhead)"
-                />
+            {/* Main connection line */}
+            <polyline
+                points={points}
+                fill="none"
+                stroke="#4682B4"
+                strokeWidth="2"
+                className="connection-line"
+                markerEnd="url(#arrowhead)"
+            />
+
+            {/* Decision label with background and border */}
+            {isFromDecision && decisionLabel && labelPoint && (
+                <g>
+                    {/* Background rectangle with border */}
+                    <rect
+                        x={labelPoint.x - 16}
+                        y={labelPoint.y - 10}
+                        width="32"
+                        height="20"
+                        fill="white"
+                        stroke="#4682B4"
+                        strokeWidth="1"
+                        rx="10"
+                        ry="10"
+                        style={{
+                            userSelect: "none",
+                            pointerEvents: "none",
+                        }}
+                    />
+                    {/* Decision label text */}
+                    <text
+                        x={labelPoint.x}
+                        y={labelPoint.y + 4}
+                        textAnchor="middle"
+                        fill="#4682B4"
+                        fontSize="12"
+                        fontWeight="bold"
+                        className={`decision-label decision-${connection.decisionType}`}
+                        data-connection-id={connection.id}
+                        style={{
+                            userSelect: "none",
+                            pointerEvents: "none",
+                        }}
+                    >
+                        {decisionLabel}
+                    </text>
+                </g>
             )}
 
-            {/* Invisible clickable area for delete */}
+            {/* Delete button - invisible clickable area */}
             <circle
-                cx={midPoint.x}
-                cy={midPoint.y}
+                cx={deleteButtonPoint.x}
+                cy={deleteButtonPoint.y}
                 r="15"
                 fill="transparent"
                 className="connection-delete-area"
                 style={{ cursor: "pointer" }}
                 onClick={handleDelete}
             />
-            {/* Visible delete button (shown on hover) */}
+
+            {/* Delete button - visible button */}
             <circle
-                cx={midPoint.x}
-                cy={midPoint.y}
+                cx={deleteButtonPoint.x}
+                cy={deleteButtonPoint.y}
                 r="8"
                 fill="#dc3545"
                 className="connection-delete-button"
@@ -229,10 +421,11 @@ const Connection = ({ connection, nodes, onDelete }) => {
                     transition: "opacity 0.2s",
                 }}
             />
-            {/* Delete X text */}
+
+            {/* Delete button - X text */}
             <text
-                x={midPoint.x}
-                y={midPoint.y + 3}
+                x={deleteButtonPoint.x}
+                y={deleteButtonPoint.y + 3}
                 textAnchor="middle"
                 fill="white"
                 fontSize="10"
