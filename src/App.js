@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
+import packageJson from "../package.json";
 import Canvas from "./components/Canvas";
 import Sidebar from "./components/Sidebar";
 import Toolbar from "./components/Toolbar";
@@ -1606,7 +1607,7 @@ function App() {
                             }}
                         >
                             <div style={{ fontSize: "11px", opacity: 0.8 }}>
-                                Version 1.0.0
+                                Version {packageJson.version}
                             </div>
                         </div>
                     </div>
