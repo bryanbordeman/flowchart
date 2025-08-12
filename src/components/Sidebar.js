@@ -69,6 +69,7 @@ const Sidebar = ({
     isDrawingContainer,
     onToggleDrawingContainer,
     isLocked,
+    zoom = 1,
 }) => {
     const handleDragStart = (e, type) => {
         if (isLocked) {
@@ -79,13 +80,19 @@ const Sidebar = ({
         e.dataTransfer.effectAllowed = "copy";
     };
 
-    // On click, add node at center of visible canvas
+    // On click, add node at center of visible canvas viewport
     const handleClick = (type) => {
         if (isLocked) return; // Prevent adding nodes when locked
         if (onAddNode) {
-            // Default position: center of viewport
-            const centerX = window.innerWidth / 2 - 60; // Center for 120px node
-            const centerY = window.innerHeight / 2 - 40; // Center for 80px node
+            // Calculate the center of the canvas viewport (excluding sidebar)
+            const sidebarWidth = 260; // Width of the sidebar
+            const canvasWidth = window.innerWidth - sidebarWidth;
+            const canvasHeight = window.innerHeight;
+
+            // Center position in the canvas area (accounting for zoom)
+            const centerX = canvasWidth / 2 / zoom;
+            const centerY = canvasHeight / 2 / zoom;
+
             onAddNode(type, { x: centerX, y: centerY });
         }
     };

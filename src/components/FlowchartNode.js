@@ -904,9 +904,9 @@ const FlowchartNode = ({
                                             ? "8px"
                                             : "2px", // More padding for decision nodes
                                     boxSizing: "border-box",
-                                    wordBreak: "break-all",
+                                    wordBreak: "break-word", // Break only at word boundaries
                                     wordWrap: "break-word",
-                                    overflowWrap: "anywhere",
+                                    overflowWrap: "break-word", // Break only at word boundaries
                                     userSelect: "text", // Ensure text selection is enabled
                                     WebkitUserSelect: "text", // Safari support
                                     MozUserSelect: "text", // Firefox support
@@ -935,9 +935,9 @@ const FlowchartNode = ({
                                     justifyContent: "center",
                                     fontSize: "12px",
                                     lineHeight: "1.2",
-                                    wordBreak: "break-all",
+                                    wordBreak: "break-word", // Break only at word boundaries
                                     wordWrap: "break-word",
-                                    overflowWrap: "anywhere",
+                                    overflowWrap: "break-word", // Break only at word boundaries
                                     hyphens: "auto",
                                     textAlign: "center",
                                     whiteSpace: "pre-wrap", // Preserve line breaks and spaces

@@ -41,60 +41,71 @@ const Canvas = ({
     zoom,
     onZoomWheel,
 }) => {
-    // Ref for the canvas DOM element
-    const canvasRef = useRef(null);
+    const canvasRef = useRef(null); // inner scaled world
+    const containerRef = useRef(null); // scroll container
 
-    // Container drawing state
+    // world-space drawing state
     const [isDrawing, setIsDrawing] = useState(false);
     const [drawingStart, setDrawingStart] = useState(null);
     const [currentDrawing, setCurrentDrawing] = useState(null);
 
-    // Fallback for missing onZoomWheel
     const handleWheel = onZoomWheel || (() => {});
 
-    // Handle mouse down for container drawing
-    const handleMouseDown = (e) => {
-        if (e.target === canvasRef.current && isDrawingContainer) {
-            const rect = canvasRef.current.getBoundingClientRect();
-            const x = (e.clientX - rect.left) / zoom;
-            const y = (e.clientY - rect.top) / zoom;
+    // Minimal, reliable screen->world using the scroll container
+    const screenToWorld = (clientX, clientY) => {
+        const cont = containerRef.current;
+        if (!cont) return { x: 0, y: 0 };
+        const rect = cont.getBoundingClientRect();
+        const safeZoom = Math.max(zoom || 1, 0.0001);
 
-            setIsDrawing(true);
-            setDrawingStart({ x, y });
-            setCurrentDrawing({
-                x,
-                y,
-                width: 0,
-                height: 0,
-            });
-        }
+        // account for border + padding
+        const cs = window.getComputedStyle(cont);
+        const padL = parseFloat(cs.paddingLeft || "0") || 0;
+        const padT = parseFloat(cs.paddingTop || "0") || 0;
+
+        const offsetX = clientX - rect.left - cont.clientLeft - padL;
+        const offsetY = clientY - rect.top - cont.clientTop - padT;
+
+        return {
+            x: (cont.scrollLeft + offsetX) / safeZoom,
+            y: (cont.scrollTop + offsetY) / safeZoom,
+        };
     };
 
-    // Handle mouse move for container drawing
-    const handleMouseMove = (e) => {
-        if (isDrawing && drawingStart && isDrawingContainer) {
-            const rect = canvasRef.current.getBoundingClientRect();
-            const x = (e.clientX - rect.left) / zoom;
-            const y = (e.clientY - rect.top) / zoom;
+    // Start/drag/end on the OUTER container so you can draw anywhere you can see/scroll
+    const handleContainerMouseDown = (e) => {
+        if (!isDrawingContainer) return;
 
-            const width = Math.abs(x - drawingStart.x);
-            const height = Math.abs(y - drawingStart.y);
-            const startX = Math.min(x, drawingStart.x);
-            const startY = Math.min(y, drawingStart.y);
+        // ignore interactive bits
+        const isOnNode =
+            e.target.classList?.contains("flowchart-node") ||
+            e.target.closest?.(".flowchart-node");
+        const isOnContainerEl =
+            e.target.classList?.contains("flowchart-container") ||
+            e.target.closest?.(".flowchart-container");
+        const isOnButton = e.target.closest?.(".MuiIconButton-root");
+        const isOnPort = e.target.closest?.(".connection-port");
+        if (isOnNode || isOnContainerEl || isOnButton || isOnPort) return;
 
-            setCurrentDrawing({
-                x: startX,
-                y: startY,
-                width,
-                height,
-            });
-        }
+        const start = screenToWorld(e.clientX, e.clientY);
+        setIsDrawing(true);
+        setDrawingStart(start);
+        setCurrentDrawing({ x: start.x, y: start.y, width: 0, height: 0 });
+        e.preventDefault();
     };
 
-    // Handle mouse up for container drawing
-    const handleMouseUp = (e) => {
+    const handleContainerMouseMove = (e) => {
+        if (!isDrawing || !isDrawingContainer || !drawingStart) return;
+        const p = screenToWorld(e.clientX, e.clientY);
+        const width = Math.abs(p.x - drawingStart.x);
+        const height = Math.abs(p.y - drawingStart.y);
+        const startX = Math.min(p.x, drawingStart.x);
+        const startY = Math.min(p.y, drawingStart.y);
+        setCurrentDrawing({ x: startX, y: startY, width, height });
+    };
+
+    const handleContainerMouseUp = () => {
         if (isDrawing && currentDrawing && isDrawingContainer) {
-            // Only create container if it has minimum size
             if (currentDrawing.width > 50 && currentDrawing.height > 30) {
                 onAddContainer({
                     id: Date.now().toString(),
@@ -102,120 +113,113 @@ const Canvas = ({
                     y: currentDrawing.y,
                     width: currentDrawing.width,
                     height: currentDrawing.height,
-                    color: "#e3f2fd", // Light blue pastel
-                    borderColor: "#2196f3", // Blue border
+                    color: "#e3f2fd",
+                    borderColor: "#2196f3",
                     title: "Container",
                 });
                 onStopDrawingContainer();
             }
         }
-
         setIsDrawing(false);
         setDrawingStart(null);
         setCurrentDrawing(null);
     };
 
-    // Handle canvas click to deselect when clicking empty space
     const handleCanvasClick = (e) => {
-        // Only deselect if clicking directly on the canvas (not on nodes or containers)
         if (e.target === canvasRef.current && !isDrawingContainer) {
-            if (onClearAllSelections) {
-                onClearAllSelections();
-            }
-            if (isConnecting) {
-                onCancelConnection();
-            }
+            onClearAllSelections?.();
+            if (isConnecting) onCancelConnection();
         }
     };
 
     const handleDrop = (e) => {
         e.preventDefault();
         const nodeType = e.dataTransfer.getData("nodeType");
-
         if (nodeType) {
-            const rect = canvasRef.current.getBoundingClientRect();
-            // Adjust for zoom so drop matches visible grid
-            const scaledX = (e.clientX - rect.left) / zoom;
-            const scaledY = (e.clientY - rect.top) / zoom;
-            const rawX = scaledX - 60; // Offset to center the 120px wide node
-            const rawY = scaledY - 40; // Offset to center the 80px tall node
-
-            // Snap to grid (20px)
+            const p = screenToWorld(e.clientX, e.clientY);
+            const rawX = p.x - 60; // center 120x80
+            const rawY = p.y - 40;
             const gridSize = 20;
-            let snappedX = Math.round(rawX / gridSize) * gridSize;
-            let snappedY = Math.round(rawY / gridSize) * gridSize;
-
-            const position = { x: snappedX, y: snappedY };
-
-            onAddNode(nodeType, position);
+            onAddNode(nodeType, {
+                x: Math.round(rawX / gridSize) * gridSize,
+                y: Math.round(rawY / gridSize) * gridSize,
+            });
         }
         e.dataTransfer.dropEffect = "copy";
     };
+    const handleDragOver = (e) => e.preventDefault();
 
-    const handleDragOver = (e) => {
-        e.preventDefault();
-    };
-
-    // Deselect node when clicking anywhere in canvas-container (outside nodes)
     const handleContainerClick = (e) => {
-        // Don't deselect during multi-select operations (Ctrl+Click)
-        if (e.ctrlKey || e.metaKey) {
-            return;
-        }
-
-        // Only deselect if the click is NOT inside a node or container
-        if (
-            !e.target.classList.contains("flowchart-node") &&
-            !e.target.closest(".flowchart-node") &&
-            !e.target.classList.contains("flowchart-container") &&
-            !e.target.closest(".flowchart-container") &&
-            !e.target.closest(".MuiIconButton-root") && // Don't deselect when clicking delete button
-            !e.target.closest(".connection-port") // Don't deselect when clicking connection ports
-        ) {
-            onClearAllSelections();
-            if (isConnecting) {
-                onCancelConnection();
-            }
+        if (e.ctrlKey || e.metaKey) return;
+        const isOnNode =
+            e.target.classList?.contains("flowchart-node") ||
+            e.target.closest?.(".flowchart-node");
+        const isOnContainerEl =
+            e.target.classList?.contains("flowchart-container") ||
+            e.target.closest?.(".flowchart-container");
+        const isOnButton = e.target.closest?.(".MuiIconButton-root");
+        const isOnPort = e.target.closest?.(".connection-port");
+        if (!isOnNode && !isOnContainerEl && !isOnButton && !isOnPort) {
+            onClearAllSelections?.();
+            if (isConnecting) onCancelConnection();
         }
     };
 
-    // Calculate dynamic canvas size based on node positions
-    const margin = 600; // Extra space around nodes for scrolling (increased for more expansion)
+    // ---- sizing: include nodes + containers and ensure ≥ viewport/zoom
+    const margin = 600;
     let minX = 0,
         minY = 0,
         maxX = 1200,
-        maxY = 800; // Defaults
-    if (nodes.length > 0) {
-        minX = Math.min(...nodes.map((n) => n.position.x));
-        minY = Math.min(...nodes.map((n) => n.position.y));
+        maxY = 800;
+
+    if (nodes.length) {
+        minX = Math.min(minX, ...nodes.map((n) => n.position.x));
+        minY = Math.min(minY, ...nodes.map((n) => n.position.y));
         maxX = Math.max(
-            ...nodes.map((n) => {
-                const nodeWidth = n.width || 120;
-                return n.position.x + nodeWidth;
-            })
+            maxX,
+            ...nodes.map((n) => n.position.x + (n.width || 120))
         );
         maxY = Math.max(
-            ...nodes.map((n) => {
-                const defaultHeight = n.type === "decision" ? 120 : 80;
-                const nodeHeight = n.height || defaultHeight;
-                return n.position.y + nodeHeight;
-            })
+            maxY,
+            ...nodes.map(
+                (n) =>
+                    n.position.y +
+                    (n.height || (n.type === "decision" ? 120 : 80))
+            )
         );
-        // Add margin for scrolling
-        maxX = maxX + margin;
-        maxY = maxY + margin;
     }
+    if (containers.length) {
+        minX = Math.min(minX, ...containers.map((c) => c.x));
+        minY = Math.min(minY, ...containers.map((c) => c.y));
+        maxX = Math.max(maxX, ...containers.map((c) => c.x + c.width));
+        maxY = Math.max(maxY, ...containers.map((c) => c.y + c.height));
+    }
+
+    maxX += margin;
+    maxY += margin;
+
+    const viewportW = containerRef.current?.clientWidth || window.innerWidth;
+    const viewportH = containerRef.current?.clientHeight || window.innerHeight;
+    const safeZoom = Math.max(zoom || 1, 0.0001);
+    const neededW = viewportW / safeZoom;
+    const neededH = viewportH / safeZoom;
+
+    const worldSize = {
+        width: Math.max(maxX, 1200, neededW),
+        height: Math.max(maxY, 800, neededH),
+    };
 
     const canvasStyle = {
         position: "relative",
-        width: Math.max(maxX, 1200),
-        height: Math.max(maxY, 800),
+        width: worldSize.width,
+        height: worldSize.height,
         minWidth: "100vw",
         minHeight: "100vh",
     };
 
     return (
         <div
+            ref={containerRef}
             className="canvas-container"
             onClick={handleContainerClick}
             style={{
@@ -234,12 +238,12 @@ const Canvas = ({
                     ? "8px"
                     : "0",
                 backgroundColor: isLocked
-                    ? "rgba(0, 128, 147, 0.02)"
+                    ? "rgba(0,128,147,0.02)"
                     : "transparent",
                 boxShadow: isDrawingContainer
-                    ? "inset 0 0 20px rgba(33, 150, 243, 0.1)"
+                    ? "inset 0 0 20px rgba(33,150,243,0.1)"
                     : isLocked
-                    ? "0 2px 8px rgba(0, 128, 147, 0.3)"
+                    ? "0 2px 8px rgba(0,128,147,0.3)"
                     : "none",
                 transition: "all 0.3s ease",
                 cursor: isDrawingContainer ? "crosshair" : "default",
@@ -248,37 +252,56 @@ const Canvas = ({
                     : "none",
             }}
             onWheel={handleWheel}
+            onMouseDown={handleContainerMouseDown}
+            onMouseMove={handleContainerMouseMove}
+            onMouseUp={handleContainerMouseUp}
+            onDrop={handleDrop}
+            onDragOver={handleDragOver}
         >
             <style>
                 {`
-                    @keyframes borderPulse {
-                        0% {
-                            border-color: #007AFF;
-                            box-shadow: inset 0 0 20px rgba(0, 122, 255, 0.2), 0 0 0 0 rgba(0, 122, 255, 0.5);
-                        }
-                        20% {
-                            border-color: #5856D6;
-                            box-shadow: inset 0 0 25px rgba(88, 86, 214, 0.25), 0 0 0 4px rgba(88, 86, 214, 0.3);
-                        }
-                        40% {
-                            border-color: #AF52DE;
-                            box-shadow: inset 0 0 30px rgba(175, 82, 222, 0.3), 0 0 0 8px rgba(175, 82, 222, 0.2);
-                        }
-                        60% {
-                            border-color: #FF2D92;
-                            box-shadow: inset 0 0 25px rgba(255, 45, 146, 0.25), 0 0 0 6px rgba(255, 45, 146, 0.25);
-                        }
-                        80% {
-                            border-color: #5856D6;
-                            box-shadow: inset 0 0 25px rgba(88, 86, 214, 0.25), 0 0 0 4px rgba(88, 86, 214, 0.3);
-                        }
-                        100% {
-                            border-color: #007AFF;
-                            box-shadow: inset 0 0 20px rgba(0, 122, 255, 0.2), 0 0 0 0 rgba(0, 122, 255, 0.5);
-                        }
-                    }
-                `}
+          @keyframes borderPulse {
+            0% { border-color: #007AFF; box-shadow: inset 0 0 20px rgba(0,122,255,0.2), 0 0 0 0 rgba(0,122,255,0.5); }
+            20% { border-color: #5856D6; box-shadow: inset 0 0 25px rgba(88,86,214,0.25), 0 0 0 4px rgba(88,86,214,0.3); }
+            40% { border-color: #AF52DE; box-shadow: inset 0 0 30px rgba(175,82,222,0.3), 0 0 0 8px rgba(175,82,222,0.2); }
+            60% { border-color: #FF2D92; box-shadow: inset 0 0 25px rgba(255,45,146,0.25), 0 0 0 6px rgba(255,45,146,0.25); }
+            80% { border-color: #5856D6; box-shadow: inset 0 0 25px rgba(88,86,214,0.25), 0 0 0 4px rgba(88,86,214,0.3); }
+            100% { border-color: #007AFF; box-shadow: inset 0 0 20px rgba(0,122,255,0.2), 0 0 0 0 rgba(0,122,255,0.5); }
+          }
+        `}
             </style>
+
+            {/* world overlay: same size & transform as the canvas, sits above it; preview renders here */}
+            <div
+                className="world-overlay"
+                style={{
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    width: worldSize.width,
+                    height: worldSize.height,
+                    transform: `scale(${zoom})`,
+                    transformOrigin: "0 0",
+                    pointerEvents: "none",
+                    zIndex: 2, // above canvas content for visibility
+                }}
+            >
+                {isDrawingContainer && isDrawing && currentDrawing && (
+                    <div
+                        style={{
+                            position: "absolute",
+                            left: currentDrawing.x,
+                            top: currentDrawing.y,
+                            width: currentDrawing.width,
+                            height: currentDrawing.height,
+                            border: "2px dashed #2196f3",
+                            backgroundColor: "rgba(33,150,243,0.1)",
+                        }}
+                    />
+                )}
+            </div>
+
+            {/* inner scaled canvas (all actual content) */}
             <div
                 ref={canvasRef}
                 className="canvas"
@@ -287,31 +310,25 @@ const Canvas = ({
                     transform: `scale(${zoom})`,
                     transformOrigin: "0 0",
                     background: "none",
+                    position: "relative",
+                    zIndex: 1,
                 }}
                 onClick={handleCanvasClick}
-                onMouseDown={handleMouseDown}
-                onMouseMove={handleMouseMove}
-                onMouseUp={handleMouseUp}
-                onDrop={handleDrop}
-                onDragOver={handleDragOver}
             >
-                {/* Container drawing mode background overlay */}
+                {/* optional tinted overlay when drawing */}
                 {isDrawingContainer && (
                     <div
                         style={{
                             position: "absolute",
-                            top: 0,
-                            left: 0,
-                            width: "100%",
-                            height: "100%",
-                            backgroundColor: "rgba(33, 150, 243, 0.03)",
+                            inset: 0,
+                            backgroundColor: "rgba(33,150,243,0.03)",
                             pointerEvents: "none",
                             zIndex: 0,
                         }}
                     />
                 )}
 
-                {/* Render containers first (behind nodes) */}
+                {/* containers */}
                 {containers.map((container) => (
                     <Container
                         key={container.id}
@@ -328,19 +345,22 @@ const Canvas = ({
                             }
                         }}
                         onUpdate={(containerId, updates) => {
-                            // Check if this is a position update
                             if (
-                                updates.hasOwnProperty("x") &&
-                                updates.hasOwnProperty("y")
+                                Object.prototype.hasOwnProperty.call(
+                                    updates,
+                                    "x"
+                                ) &&
+                                Object.prototype.hasOwnProperty.call(
+                                    updates,
+                                    "y"
+                                )
                             ) {
-                                // Use group movement for position updates
                                 onHandleGroupMovement(
                                     containerId,
                                     { x: updates.x, y: updates.y },
                                     true
                                 );
                             } else {
-                                // Use regular update for other properties (width, height, color, etc.)
                                 onUpdateContainer(containerId, updates);
                             }
                         }}
@@ -349,24 +369,7 @@ const Canvas = ({
                     />
                 ))}
 
-                {/* Drawing preview rectangle */}
-                {currentDrawing && isDrawing && (
-                    <div
-                        style={{
-                            position: "absolute",
-                            left: currentDrawing.x,
-                            top: currentDrawing.y,
-                            width: currentDrawing.width,
-                            height: currentDrawing.height,
-                            border: "2px dashed #2196f3",
-                            backgroundColor: "rgba(33, 150, 243, 0.1)",
-                            pointerEvents: "none",
-                            zIndex: 10,
-                        }}
-                    />
-                )}
-
-                {/* SVG overlay for connections */}
+                {/* connections */}
                 <svg
                     className="connections-layer"
                     style={{
@@ -375,11 +378,10 @@ const Canvas = ({
                         left: 0,
                         width: "100%",
                         height: "100%",
-                        pointerEvents: "none", // Make SVG transparent to clicks
-                        zIndex: 15, // Higher than containers but pointer events disabled
+                        pointerEvents: "none",
+                        zIndex: 15,
                     }}
                 >
-                    {/* Arrow marker definition */}
                     <defs>
                         <marker
                             id="arrowhead"
@@ -401,6 +403,8 @@ const Canvas = ({
                         />
                     ))}
                 </svg>
+
+                {/* nodes */}
                 {nodes.map((node) => (
                     <FlowchartNode
                         key={node.id}
@@ -432,7 +436,8 @@ const Canvas = ({
                         onOpenLinkedFile={onOpenLinkedFile}
                     />
                 ))}
-                {/* SVG overlay for decision labels - rendered above nodes */}
+
+                {/* decision labels layer */}
                 <svg
                     className="decision-labels-layer"
                     style={{
@@ -444,11 +449,9 @@ const Canvas = ({
                         pointerEvents: "none",
                         zIndex: 100,
                     }}
-                >
-                    {/* Decision connection labels are now handled in Connection.js */}
-                </svg>
+                />
 
-                {/* Watermark logo */}
+                {/* watermark */}
                 <div
                     style={{
                         position: "absolute",
@@ -462,12 +465,11 @@ const Canvas = ({
                     <img
                         src={apLogo}
                         alt="AP Logo Watermark"
-                        style={{
-                            width: "200px",
-                            height: "auto",
-                        }}
+                        style={{ width: 200, height: "auto" }}
                     />
                 </div>
+
+                {/* empty state */}
                 {nodes.length === 0 && (
                     <div
                         style={{
@@ -477,15 +479,15 @@ const Canvas = ({
                             transform: "translate(-50%, -50%)",
                             textAlign: "center",
                             color: "#999",
-                            fontSize: "18px",
+                            fontSize: 18,
                             pointerEvents: "none",
                         }}
                     >
                         <div
                             style={{
-                                fontSize: "24px",
+                                fontSize: 24,
                                 fontWeight: 500,
-                                marginBottom: "12px",
+                                marginBottom: 12,
                                 color: "#666",
                             }}
                         >
@@ -493,13 +495,13 @@ const Canvas = ({
                         </div>
                         <div
                             style={{
-                                fontSize: "16px",
+                                fontSize: 16,
                                 lineHeight: 1.6,
                                 color: "#888",
-                                maxWidth: "400px",
+                                maxWidth: 400,
                             }}
                         >
-                            <div style={{ marginBottom: "3px" }}>
+                            <div style={{ marginBottom: 3 }}>
                                 • Drag flowchart symbols from sidebar to canvas
                             </div>
                         </div>

@@ -1436,6 +1436,7 @@ function App() {
                         isDrawingContainer={isDrawingContainer}
                         onToggleDrawingContainer={toggleDrawingContainer}
                         isLocked={isLocked}
+                        zoom={zoom}
                     />
 
                     <Canvas

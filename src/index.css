@@ -299,9 +299,9 @@ code {
     padding: 8px !important; /* Reduced padding for diamond shape */
     box-sizing: border-box !important;
     overflow: hidden !important;
-    word-break: break-all !important; /* Force long words to break */
+    word-break: break-word !important; /* Break only at word boundaries */
     word-wrap: break-word !important;
-    overflow-wrap: anywhere !important; /* Modern property for aggressive word wrapping */
+    overflow-wrap: break-word !important; /* Break only at word boundaries */
     hyphens: auto !important;
     text-align: center !important;
 }
@@ -354,9 +354,9 @@ code {
     padding: 4px; /* Reduced padding for more text area */
     box-sizing: border-box;
     overflow: hidden;
-    word-break: break-all; /* Force long words to break */
+    word-break: break-word; /* Break only at word boundaries */
     word-wrap: break-word;
-    overflow-wrap: anywhere; /* Modern property for aggressive word wrapping */
+    overflow-wrap: break-word; /* Break only at word boundaries */
     hyphens: auto;
 }
 
