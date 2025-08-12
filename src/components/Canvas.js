@@ -49,7 +49,16 @@ const Canvas = ({
     const [drawingStart, setDrawingStart] = useState(null);
     const [currentDrawing, setCurrentDrawing] = useState(null);
 
-    const handleWheel = onZoomWheel || (() => {});
+    // Wheel event handler for zoom, attached with passive: false
+    React.useEffect(() => {
+        const el = containerRef.current;
+        if (!el) return;
+        const handler = (e) => {
+            if (onZoomWheel) onZoomWheel(e);
+        };
+        el.addEventListener("wheel", handler, { passive: false });
+        return () => el.removeEventListener("wheel", handler);
+    }, [onZoomWheel]);
 
     // Minimal, reliable screen->world using the scroll container
     const screenToWorld = (clientX, clientY) => {
@@ -251,7 +260,7 @@ const Canvas = ({
                     ? "borderPulse 2s infinite"
                     : "none",
             }}
-            onWheel={handleWheel}
+            // ...existing code...
             onMouseDown={handleContainerMouseDown}
             onMouseMove={handleContainerMouseMove}
             onMouseUp={handleContainerMouseUp}
@@ -321,7 +330,6 @@ const Canvas = ({
                         style={{
                             position: "absolute",
                             inset: 0,
-                            backgroundColor: "rgba(33,150,243,0.03)",
                             pointerEvents: "none",
                             zIndex: 0,
                         }}

@@ -59,7 +59,7 @@ const Container = ({
 
     const handleClick = (e) => {
         e.stopPropagation();
-        console.log("Container selected:", container.id); // Keep this to verify selection works
+        // console.log("Container selected:", container.id); // Keep this to verify selection works
         onSelect(container.id, e);
     };
 
